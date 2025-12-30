@@ -215,8 +215,19 @@ export default function App() {
       ['Sending Endorsements', weeklyData.days.monday.sendingEndorsements, weeklyData.days.tuesday.sendingEndorsements, weeklyData.days.wednesday.sendingEndorsements, weeklyData.days.thursday.sendingEndorsements, weeklyData.days.friday.sendingEndorsements, ''],
       ['Corrections', weeklyData.days.monday.corrections, weeklyData.days.tuesday.corrections, weeklyData.days.wednesday.corrections, weeklyData.days.thursday.corrections, weeklyData.days.friday.corrections, ''],
     ];
+    
+    // Add correction notes if any exist
+    if (weeklyData.correctionNotes && weeklyData.correctionNotes.length > 0) {
+      wsData.push(['', '', '', '', '', '', '']); // Empty row
+      wsData.push(['Correction Notes', '', '', '', '', '', '']);
+      weeklyData.correctionNotes.forEach((note, index) => {
+        const status = note.completed ? '✓ DONE' : '○ PENDING';
+        wsData.push([`${index + 1}. ${note.text}`, status, '', '', '', '', '']);
+      });
+    }
+    
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
+    ws['!cols'] = [{ wch: 40 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
     XLSX.writeFile(wb, `Week_${weeklyData.weekNumber}.xlsx`);
   };
