@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 
 const INITIAL_WEEKLY_DATA = {
@@ -55,10 +55,16 @@ const INITIAL_WEEKLY_DATA = {
       corrections: 0 
     },
   },
-  correctionNotes: [], // Array of { id, text, completed }
-  followUp: {
-    correctionsEEndorsements: '',
-    sras: ''
+  correctionNotes: [] // Array of { id, text, completed }
+};
+
+// Load saved data from localStorage
+const loadSavedData = (key, defaultValue) => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : defaultValue;
+  } catch {
+    return defaultValue;
   }
 };
 
@@ -82,17 +88,54 @@ const MONTHLY_DATA = {
 const WEEKLY_HISTORY = { 44: 488, 45: 489, 46: 397, 47: 426 };
 
 export default function App() {
-  const [weeklyData, setWeeklyData] = useState({
-    ...INITIAL_WEEKLY_DATA,
-    weekNumber: getCurrentWeek()
-  });
+  const [weeklyData, setWeeklyData] = useState(() => 
+    loadSavedData('seafarers_weeklyData', { ...INITIAL_WEEKLY_DATA, weekNumber: getCurrentWeek() })
+  );
   const [csvData, setCsvData] = useState(null);
-  const [outstandingEnd, setOutstandingEnd] = useState(null);
-  const [nextSRA, setNextSRA] = useState(null);
+  const [outstandingEnd, setOutstandingEnd] = useState(() => 
+    loadSavedData('seafarers_outstandingEnd', null)
+  );
+  const [nextSRA, setNextSRA] = useState(() => 
+    loadSavedData('seafarers_nextSRA', null)
+  );
   const [activeTab, setActiveTab] = useState('dashboard');
   const [monthlyData, setMonthlyData] = useState(MONTHLY_DATA);
   const [weeklyHistory, setWeeklyHistory] = useState(WEEKLY_HISTORY);
   const [newCorrectionNote, setNewCorrectionNote] = useState('');
+  const [lastSaved, setLastSaved] = useState(null);
+
+  // Auto-save weeklyData to localStorage
+  useEffect(() => {
+    localStorage.setItem('seafarers_weeklyData', JSON.stringify(weeklyData));
+    setLastSaved(new Date());
+  }, [weeklyData]);
+
+  // Auto-save outstandingEnd to localStorage
+  useEffect(() => {
+    if (outstandingEnd) {
+      localStorage.setItem('seafarers_outstandingEnd', JSON.stringify(outstandingEnd));
+    }
+  }, [outstandingEnd]);
+
+  // Auto-save nextSRA to localStorage
+  useEffect(() => {
+    if (nextSRA) {
+      localStorage.setItem('seafarers_nextSRA', JSON.stringify(nextSRA));
+    }
+  }, [nextSRA]);
+
+  // Function to reset all data for new week
+  const resetForNewWeek = () => {
+    if (window.confirm('⚠️ Tens a certeza que queres limpar todos os dados e começar uma nova semana?')) {
+      const newData = { ...INITIAL_WEEKLY_DATA, weekNumber: getCurrentWeek() };
+      setWeeklyData(newData);
+      setOutstandingEnd(null);
+      setNextSRA(null);
+      setCsvData(null);
+      localStorage.removeItem('seafarers_outstandingEnd');
+      localStorage.removeItem('seafarers_nextSRA');
+    }
+  };
 
   const calculateTotals = useCallback(() => {
     let perSeafarer = 0, perEndorsement = 0, appSeafarer = 0, appCert = 0;
@@ -157,17 +200,10 @@ export default function App() {
         };
       });
       
-      // Extract Follow Up section
-      const followUp = {
-        correctionsEEndorsements: json[14]?.[4]?.toString() || '',
-        sras: json[18]?.[4]?.toString() || ''
-      };
-      
       setWeeklyData(prev => ({
         ...prev,
         weekNumber: parseInt(weekNum) || getCurrentWeek(),
-        days: newDays,
-        followUp: followUp
+        days: newDays
       }));
     };
     reader.readAsArrayBuffer(file);
@@ -255,13 +291,6 @@ export default function App() {
       ['Sending SRA', weeklyData.days.monday.sendingSRA, weeklyData.days.tuesday.sendingSRA, weeklyData.days.wednesday.sendingSRA, weeklyData.days.thursday.sendingSRA, weeklyData.days.friday.sendingSRA, ''],
       ['Sending Endorsements', weeklyData.days.monday.sendingEndorsements, weeklyData.days.tuesday.sendingEndorsements, weeklyData.days.wednesday.sendingEndorsements, weeklyData.days.thursday.sendingEndorsements, weeklyData.days.friday.sendingEndorsements, ''],
       ['Corrections', weeklyData.days.monday.corrections, weeklyData.days.tuesday.corrections, weeklyData.days.wednesday.corrections, weeklyData.days.thursday.corrections, weeklyData.days.friday.corrections, ''],
-      ['', '', '', '', '', '', ''],
-      ['Follow Up:', '', '', 'Corrections', '', '', ''],
-      ['', '', '', 'E-Endorsements:', weeklyData.followUp.correctionsEEndorsements, '', ''],
-      ['', '', '', '', '', '', ''],
-      ['', '', '', '', '', '', ''],
-      ['', '', '', '', '', '', ''],
-      ['', '', '', "SRA's:", weeklyData.followUp.sras, '', ''],
     ];
     
     // Add correction notes if any exist
@@ -275,7 +304,7 @@ export default function App() {
     }
     
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 25 }, { wch: 15 }, { wch: 10 }];
+    ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
     XLSX.writeFile(wb, `Week_${weeklyData.weekNumber}.xlsx`);
   };
@@ -371,9 +400,18 @@ export default function App() {
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <div className="bg-gradient-to-r from-red-800 to-red-600 text-white p-4 shadow-lg">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold">🚢 Seafarers Status Dashboard</h1>
-          <p className="text-red-200 text-sm">Portugal Flag - Endorsements 🇵🇹</p>
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">🚢 Seafarers Status Dashboard</h1>
+            <p className="text-red-200 text-sm">Portugal Flag - Endorsements 🇵🇹</p>
+          </div>
+          <div className="text-right">
+            {lastSaved && (
+              <p className="text-red-200 text-xs">
+                💾 Guardado: {lastSaved.toLocaleTimeString('pt-PT')}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -529,12 +567,20 @@ export default function App() {
                     className="border-2 border-gray-300 rounded-lg px-4 py-2 w-24 text-center text-xl font-bold focus:border-red-500 focus:outline-none"
                   />
                 </div>
-                <button 
-                  onClick={downloadCrewboardExcel} 
-                  className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white px-6 py-3 rounded-lg font-semibold shadow-md transition-all flex items-center gap-2"
-                >
-                  📥 Download Excel
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={resetForNewWeek} 
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-3 rounded-lg font-semibold shadow-md transition-all flex items-center gap-2"
+                  >
+                    🔄 Nova Semana
+                  </button>
+                  <button 
+                    onClick={downloadCrewboardExcel} 
+                    className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white px-6 py-3 rounded-lg font-semibold shadow-md transition-all flex items-center gap-2"
+                  >
+                    📥 Download Excel
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -669,37 +715,7 @@ export default function App() {
                 </table>
               </div>
               
-              {/* Follow Up Section */}
-              <div className="bg-purple-50 p-6 border-t">
-                <h3 className="font-bold text-purple-800 mb-4">📋 Follow Up - Corrections</h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">E-Endorsements:</label>
-                    <input 
-                      type="text" 
-                      value={weeklyData.followUp?.correctionsEEndorsements || ''} 
-                      onChange={(e) => setWeeklyData(prev => ({ 
-                        ...prev, 
-                        followUp: { ...prev.followUp, correctionsEEndorsements: e.target.value } 
-                      }))}
-                      placeholder="Enter seafarer name..."
-                      className="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">SRA's:</label>
-                    <input 
-                      type="text" 
-                      value={weeklyData.followUp?.sras || ''} 
-                      onChange={(e) => setWeeklyData(prev => ({ 
-                        ...prev, 
-                        followUp: { ...prev.followUp, sras: e.target.value } 
-                      }))}
-                      placeholder="Enter seafarer name..."
-                      className="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
+              {/* Follow Up Section - REMOVED, using Correction Notes instead */}
               </div>
               
               {/* Totals */}
