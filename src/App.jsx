@@ -715,9 +715,6 @@ export default function App() {
                 </table>
               </div>
               
-              {/* Follow Up Section - REMOVED, using Correction Notes instead */}
-              </div>
-              
               {/* Totals */}
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 border-t">
                 <div className="grid grid-cols-4 gap-4 text-center">
