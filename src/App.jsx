@@ -149,6 +149,17 @@ export default function App() {
 
   const totals = calculateTotals();
 
+  // Helper function to convert Excel serial date to JS Date
+  const excelDateToJS = (excelDate) => {
+    if (typeof excelDate === 'number') {
+      // Excel serial date (days since 1900-01-01, with leap year bug)
+      return new Date((excelDate - 25569) * 86400 * 1000);
+    } else if (typeof excelDate === 'string' && excelDate) {
+      return new Date(excelDate);
+    }
+    return null;
+  };
+
   const handleCSVUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -158,9 +169,11 @@ export default function App() {
       const data = new Uint8Array(event.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(sheet);
+      // Use defval: '' to keep empty columns
+      const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
       
       console.log('CSV loaded:', jsonData.length, 'rows');
+      console.log('Columns:', Object.keys(jsonData[0] || {}));
       console.log('First row:', jsonData[0]);
       
       setCsvData(jsonData);
@@ -214,7 +227,8 @@ export default function App() {
     const results = [];
     
     console.log('Calculating Outstanding End...');
-    console.log('Sample row keys:', data[0] ? Object.keys(data[0]) : 'no data');
+    console.log('Today:', today);
+    console.log('Sample row:', data[0]);
     
     for (let i = 0; i < 3; i++) {
       const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
@@ -225,11 +239,12 @@ export default function App() {
       
       data.forEach(row => {
         // Handle different possible column names
-        const sraExpiryStr = row['SRA Expiry date'] || row['SRA Expiry Date'] || '';
-        if (!sraExpiryStr) return;
+        const sraExpiryRaw = row['SRA Expiry date'] || row['SRA Expiry Date'] || '';
+        if (!sraExpiryRaw && sraExpiryRaw !== 0) return;
         
-        const sraExpiry = new Date(sraExpiryStr);
-        if (isNaN(sraExpiry.getTime())) return;
+        // Convert Excel serial date or string to Date
+        const sraExpiry = excelDateToJS(sraExpiryRaw);
+        if (!sraExpiry || isNaN(sraExpiry.getTime())) return;
         
         if (sraExpiry >= monthStart && sraExpiry <= monthEnd) {
           const certs = ['COC Number', 'GOC Number', 'COP - 1 Number', 'COP - 2 Number'];
@@ -246,7 +261,7 @@ export default function App() {
         }
       });
       
-      console.log(`${monthName}: allCases=${allCases}, canBeIssued=${canBeIssued}`);
+      console.log(`${monthName} ${targetDate.getFullYear()}: allCases=${allCases}, canBeIssued=${canBeIssued}`);
       results.push({ month: monthName, allCases, canBeIssued });
     }
     setOutstandingEnd(results);
@@ -256,27 +271,30 @@ export default function App() {
     const today = new Date();
     const upcoming = data
       .filter(row => {
-        const sraExpiryStr = row['SRA Expiry date'] || row['SRA Expiry Date'] || '';
-        if (!sraExpiryStr) return false;
-        const sraDate = new Date(sraExpiryStr);
-        return !isNaN(sraDate.getTime()) && sraDate >= today;
+        const sraExpiryRaw = row['SRA Expiry date'] || row['SRA Expiry Date'] || '';
+        if (!sraExpiryRaw && sraExpiryRaw !== 0) return false;
+        const sraDate = excelDateToJS(sraExpiryRaw);
+        return sraDate && !isNaN(sraDate.getTime()) && sraDate >= today;
       })
       .sort((a, b) => {
-        const dateA = new Date(a['SRA Expiry date'] || a['SRA Expiry Date']);
-        const dateB = new Date(b['SRA Expiry date'] || b['SRA Expiry Date']);
+        const dateA = excelDateToJS(a['SRA Expiry date'] || a['SRA Expiry Date']);
+        const dateB = excelDateToJS(b['SRA Expiry date'] || b['SRA Expiry Date']);
         return dateA - dateB;
       });
     
     if (upcoming.length > 0) {
       const next = upcoming[0];
-      const sraDate = next['SRA Expiry date'] || next['SRA Expiry Date'];
+      const sraDateRaw = next['SRA Expiry date'] || next['SRA Expiry Date'];
+      const sraDate = excelDateToJS(sraDateRaw);
+      const formattedDate = sraDate ? sraDate.toISOString().split('T')[0] : '-';
+      
       setNextSRA({ 
-        date: sraDate, 
+        date: formattedDate, 
         ship: next['Ship'] || next['ship'] || '-', 
         name: next['Name'] || next['name'] || '-', 
         company: next['Invoice Address'] || next['Invoice address'] || '-' 
       });
-      console.log('Next SRA:', sraDate, next['Ship'], next['Name']);
+      console.log('Next SRA:', formattedDate, next['Ship'], next['Name']);
     }
   };
 
