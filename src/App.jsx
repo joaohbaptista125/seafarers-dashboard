@@ -4,13 +4,62 @@ import * as XLSX from 'xlsx';
 const INITIAL_WEEKLY_DATA = {
   weekNumber: 1,
   days: {
-    monday: { endorsementsReceived: '0/0', applicationsReceived: '0/0', sendingSRA: '', sendingEndorsements: '', corrections: 0 },
-    tuesday: { endorsementsReceived: '0/0', applicationsReceived: '0/0', sendingSRA: '', sendingEndorsements: '', corrections: 0 },
-    wednesday: { endorsementsReceived: '0/0', applicationsReceived: '0/0', sendingSRA: '', sendingEndorsements: '', corrections: 0 },
-    thursday: { endorsementsReceived: '0/0', applicationsReceived: '0/0', sendingSRA: '', sendingEndorsements: '', corrections: 0 },
-    friday: { endorsementsReceived: '0/0', applicationsReceived: '0/0', sendingSRA: '', sendingEndorsements: '', corrections: 0 },
+    monday: { 
+      endorsementsToBeIssued: '0/0',
+      endorsementsReadyToBeIssued: '0/0',
+      weeksAheadSRAExp: '0/0',
+      endorsementsReceived: '0/0', 
+      applicationsReceived: '0/0', 
+      sendingSRA: '', 
+      sendingEndorsements: '', 
+      corrections: 0 
+    },
+    tuesday: { 
+      endorsementsToBeIssued: '0/0',
+      endorsementsReadyToBeIssued: '0/0',
+      weeksAheadSRAExp: '0/0',
+      endorsementsReceived: '0/0', 
+      applicationsReceived: '0/0', 
+      sendingSRA: '', 
+      sendingEndorsements: '', 
+      corrections: 0 
+    },
+    wednesday: { 
+      endorsementsToBeIssued: '0/0',
+      endorsementsReadyToBeIssued: '0/0',
+      weeksAheadSRAExp: '0/0',
+      endorsementsReceived: '0/0', 
+      applicationsReceived: '0/0', 
+      sendingSRA: '', 
+      sendingEndorsements: '', 
+      corrections: 0 
+    },
+    thursday: { 
+      endorsementsToBeIssued: '0/0',
+      endorsementsReadyToBeIssued: '0/0',
+      weeksAheadSRAExp: '0/0',
+      endorsementsReceived: '0/0', 
+      applicationsReceived: '0/0', 
+      sendingSRA: '', 
+      sendingEndorsements: '', 
+      corrections: 0 
+    },
+    friday: { 
+      endorsementsToBeIssued: '0/0',
+      endorsementsReadyToBeIssued: '0/0',
+      weeksAheadSRAExp: '0/0',
+      endorsementsReceived: '0/0', 
+      applicationsReceived: '0/0', 
+      sendingSRA: '', 
+      sendingEndorsements: '', 
+      corrections: 0 
+    },
   },
-  correctionNotes: [] // Array of { id, text, completed }
+  correctionNotes: [], // Array of { id, text, completed }
+  followUp: {
+    correctionsEEndorsements: '',
+    sras: ''
+  }
 };
 
 // Get current week number
@@ -88,49 +137,38 @@ export default function App() {
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
       
-      // Extract week number
+      // Extract week number from row 1, column G (index 6)
       const weekNum = json[1]?.[6] || getCurrentWeek();
       
-      // Extract data from the Excel
-      const newDays = { ...INITIAL_WEEKLY_DATA.days };
+      // Extract data from the Excel - matching exact structure
       const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+      const newDays = {};
       
-      // Row 4 (index 4) has endorsements received
-      // Row 5 has applications
-      // Row 6 has sending SRA
-      // Row 7 has sending endorsements
-      // Row 8 has corrections
-      
-      if (json[4]) {
-        dayNames.forEach((day, i) => {
-          newDays[day].endorsementsReceived = json[4][i + 1] || '0/0';
-        });
-      }
-      if (json[5]) {
-        dayNames.forEach((day, i) => {
-          newDays[day].applicationsReceived = json[5][i + 1] || '0/0';
-        });
-      }
-      if (json[6]) {
-        dayNames.forEach((day, i) => {
-          newDays[day].sendingSRA = json[6][i + 1] || '';
-        });
-      }
-      if (json[7]) {
-        dayNames.forEach((day, i) => {
-          newDays[day].sendingEndorsements = json[7][i + 1] || '';
-        });
-      }
-      if (json[8]) {
-        dayNames.forEach((day, i) => {
-          newDays[day].corrections = parseInt(json[8][i + 1]) || 0;
-        });
-      }
-      
-      setWeeklyData({
-        weekNumber: parseInt(weekNum) || getCurrentWeek(),
-        days: newDays
+      dayNames.forEach((day, i) => {
+        newDays[day] = {
+          endorsementsToBeIssued: json[4]?.[i + 1]?.toString() || '0/0',
+          endorsementsReadyToBeIssued: json[5]?.[i + 1]?.toString() || '0/0',
+          weeksAheadSRAExp: json[6]?.[i + 1]?.toString() || '0/0',
+          endorsementsReceived: json[7]?.[i + 1]?.toString() || '0/0',
+          applicationsReceived: json[8]?.[i + 1]?.toString() || '0/0',
+          sendingSRA: json[9]?.[i + 1]?.toString() || '',
+          sendingEndorsements: json[10]?.[i + 1]?.toString() || '',
+          corrections: parseInt(json[11]?.[i + 1]) || 0,
+        };
       });
+      
+      // Extract Follow Up section
+      const followUp = {
+        correctionsEEndorsements: json[14]?.[4]?.toString() || '',
+        sras: json[18]?.[4]?.toString() || ''
+      };
+      
+      setWeeklyData(prev => ({
+        ...prev,
+        weekNumber: parseInt(weekNum) || getCurrentWeek(),
+        days: newDays,
+        followUp: followUp
+      }));
     };
     reader.readAsArrayBuffer(file);
   };
@@ -209,11 +247,21 @@ export default function App() {
       ['', '', '', '', '', 'Week ', weeklyData.weekNumber],
       ['', '', '', '', '', '', ''],
       ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', ''],
+      ['Endorsements to be issued', weeklyData.days.monday.endorsementsToBeIssued, weeklyData.days.tuesday.endorsementsToBeIssued, weeklyData.days.wednesday.endorsementsToBeIssued, weeklyData.days.thursday.endorsementsToBeIssued, weeklyData.days.friday.endorsementsToBeIssued, ''],
+      ['Endorsements ready to be issued', weeklyData.days.monday.endorsementsReadyToBeIssued, weeklyData.days.tuesday.endorsementsReadyToBeIssued, weeklyData.days.wednesday.endorsementsReadyToBeIssued, weeklyData.days.thursday.endorsementsReadyToBeIssued, weeklyData.days.friday.endorsementsReadyToBeIssued, ''],
+      ['Weeks ahead/     SRA Exp.', weeklyData.days.monday.weeksAheadSRAExp, weeklyData.days.tuesday.weeksAheadSRAExp, weeklyData.days.wednesday.weeksAheadSRAExp, weeklyData.days.thursday.weeksAheadSRAExp, weeklyData.days.friday.weeksAheadSRAExp, ''],
       ['Endorsements received', weeklyData.days.monday.endorsementsReceived, weeklyData.days.tuesday.endorsementsReceived, weeklyData.days.wednesday.endorsementsReceived, weeklyData.days.thursday.endorsementsReceived, weeklyData.days.friday.endorsementsReceived, ''],
       ['Applications / Cert per app', weeklyData.days.monday.applicationsReceived, weeklyData.days.tuesday.applicationsReceived, weeklyData.days.wednesday.applicationsReceived, weeklyData.days.thursday.applicationsReceived, weeklyData.days.friday.applicationsReceived, ''],
       ['Sending SRA', weeklyData.days.monday.sendingSRA, weeklyData.days.tuesday.sendingSRA, weeklyData.days.wednesday.sendingSRA, weeklyData.days.thursday.sendingSRA, weeklyData.days.friday.sendingSRA, ''],
       ['Sending Endorsements', weeklyData.days.monday.sendingEndorsements, weeklyData.days.tuesday.sendingEndorsements, weeklyData.days.wednesday.sendingEndorsements, weeklyData.days.thursday.sendingEndorsements, weeklyData.days.friday.sendingEndorsements, ''],
       ['Corrections', weeklyData.days.monday.corrections, weeklyData.days.tuesday.corrections, weeklyData.days.wednesday.corrections, weeklyData.days.thursday.corrections, weeklyData.days.friday.corrections, ''],
+      ['', '', '', '', '', '', ''],
+      ['Follow Up:', '', '', 'Corrections', '', '', ''],
+      ['', '', '', 'E-Endorsements:', weeklyData.followUp.correctionsEEndorsements, '', ''],
+      ['', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['', '', '', "SRA's:", weeklyData.followUp.sras, '', ''],
     ];
     
     // Add correction notes if any exist
@@ -227,7 +275,7 @@ export default function App() {
     }
     
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws['!cols'] = [{ wch: 40 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
+    ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 25 }, { wch: 15 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
     XLSX.writeFile(wb, `Week_${weeklyData.weekNumber}.xlsx`);
   };
@@ -506,6 +554,48 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
+                    <tr className="border-b bg-blue-50">
+                      <td className="p-4 font-medium">Endorsements to be issued</td>
+                      {dayNames.map(day => (
+                        <td key={day} className="p-2">
+                          <input 
+                            type="text" 
+                            value={weeklyData.days[day].endorsementsToBeIssued} 
+                            onChange={(e) => updateDayData(day, 'endorsementsToBeIssued', e.target.value)} 
+                            placeholder="XX / YY"
+                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-blue-500 focus:outline-none"
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="border-b bg-green-50">
+                      <td className="p-4 font-medium">Endorsements ready to be issued</td>
+                      {dayNames.map(day => (
+                        <td key={day} className="p-2">
+                          <input 
+                            type="text" 
+                            value={weeklyData.days[day].endorsementsReadyToBeIssued} 
+                            onChange={(e) => updateDayData(day, 'endorsementsReadyToBeIssued', e.target.value)} 
+                            placeholder="XX / YY"
+                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-green-500 focus:outline-none"
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="border-b bg-yellow-50">
+                      <td className="p-4 font-medium">Weeks ahead / SRA Exp.</td>
+                      {dayNames.map(day => (
+                        <td key={day} className="p-2">
+                          <input 
+                            type="text" 
+                            value={weeklyData.days[day].weeksAheadSRAExp} 
+                            onChange={(e) => updateDayData(day, 'weeksAheadSRAExp', e.target.value)} 
+                            placeholder="X / Y"
+                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-yellow-500 focus:outline-none"
+                          />
+                        </td>
+                      ))}
+                    </tr>
                     <tr className="border-b">
                       <td className="p-4 font-medium bg-gray-50">Endorsements received</td>
                       {dayNames.map(day => (
@@ -542,6 +632,7 @@ export default function App() {
                             type="text" 
                             value={weeklyData.days[day].sendingSRA} 
                             onChange={(e) => updateDayData(day, 'sendingSRA', e.target.value)}
+                            placeholder="Name"
                             className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-red-500 focus:outline-none"
                           />
                         </td>
@@ -555,6 +646,7 @@ export default function App() {
                             type="text" 
                             value={weeklyData.days[day].sendingEndorsements} 
                             onChange={(e) => updateDayData(day, 'sendingEndorsements', e.target.value)}
+                            placeholder="Name"
                             className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-red-500 focus:outline-none"
                           />
                         </td>
@@ -575,6 +667,39 @@ export default function App() {
                     </tr>
                   </tbody>
                 </table>
+              </div>
+              
+              {/* Follow Up Section */}
+              <div className="bg-purple-50 p-6 border-t">
+                <h3 className="font-bold text-purple-800 mb-4">📋 Follow Up - Corrections</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">E-Endorsements:</label>
+                    <input 
+                      type="text" 
+                      value={weeklyData.followUp?.correctionsEEndorsements || ''} 
+                      onChange={(e) => setWeeklyData(prev => ({ 
+                        ...prev, 
+                        followUp: { ...prev.followUp, correctionsEEndorsements: e.target.value } 
+                      }))}
+                      placeholder="Enter seafarer name..."
+                      className="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">SRA's:</label>
+                    <input 
+                      type="text" 
+                      value={weeklyData.followUp?.sras || ''} 
+                      onChange={(e) => setWeeklyData(prev => ({ 
+                        ...prev, 
+                        followUp: { ...prev.followUp, sras: e.target.value } 
+                      }))}
+                      placeholder="Enter seafarer name..."
+                      className="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
               </div>
               
               {/* Totals */}
