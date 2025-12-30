@@ -154,20 +154,20 @@ export default function App() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
-      const text = event.target.result;
-      const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-      const data = lines.slice(1).filter(line => line.trim()).map(line => {
-        const values = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || [];
-        const obj = {};
-        headers.forEach((header, i) => { obj[header] = values[i]?.replace(/"/g, '').trim() || ''; });
-        return obj;
-      });
-      setCsvData(data);
-      calculateOutstandingEnd(data);
-      findNextSRA(data);
+      // Use XLSX to parse CSV properly (handles quoted fields with commas)
+      const data = new Uint8Array(event.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(sheet);
+      
+      console.log('CSV loaded:', jsonData.length, 'rows');
+      console.log('First row:', jsonData[0]);
+      
+      setCsvData(jsonData);
+      calculateOutstandingEnd(jsonData);
+      findNextSRA(jsonData);
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleExcelUpload = (e) => {
@@ -212,23 +212,41 @@ export default function App() {
   const calculateOutstandingEnd = (data) => {
     const today = new Date();
     const results = [];
+    
+    console.log('Calculating Outstanding End...');
+    console.log('Sample row keys:', data[0] ? Object.keys(data[0]) : 'no data');
+    
     for (let i = 0; i < 3; i++) {
       const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
       const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
       const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
       const monthName = monthStart.toLocaleString('en', { month: 'long' });
       let allCases = 0, canBeIssued = 0;
+      
       data.forEach(row => {
-        const sraExpiry = new Date(row['SRA Expiry date']);
+        // Handle different possible column names
+        const sraExpiryStr = row['SRA Expiry date'] || row['SRA Expiry Date'] || '';
+        if (!sraExpiryStr) return;
+        
+        const sraExpiry = new Date(sraExpiryStr);
+        if (isNaN(sraExpiry.getTime())) return;
+        
         if (sraExpiry >= monthStart && sraExpiry <= monthEnd) {
-          ['COC Number', 'GOC Number', 'COP - 1 Number', 'COP - 2 Number'].forEach(cert => {
-            if (row[cert] && row[cert].trim()) {
+          const certs = ['COC Number', 'GOC Number', 'COP - 1 Number', 'COP - 2 Number'];
+          certs.forEach(cert => {
+            const certValue = row[cert];
+            if (certValue && String(certValue).trim()) {
               allCases++;
-              if (row['Case paid to BMAR'] && row['Case paid to BMAR'].trim()) canBeIssued++;
+              const paidValue = row['Case paid to BMAR'];
+              if (paidValue && String(paidValue).trim()) {
+                canBeIssued++;
+              }
             }
           });
         }
       });
+      
+      console.log(`${monthName}: allCases=${allCases}, canBeIssued=${canBeIssued}`);
       results.push({ month: monthName, allCases, canBeIssued });
     }
     setOutstandingEnd(results);
@@ -236,11 +254,29 @@ export default function App() {
 
   const findNextSRA = (data) => {
     const today = new Date();
-    const upcoming = data.filter(row => new Date(row['SRA Expiry date']) >= today)
-      .sort((a, b) => new Date(a['SRA Expiry date']) - new Date(b['SRA Expiry date']));
+    const upcoming = data
+      .filter(row => {
+        const sraExpiryStr = row['SRA Expiry date'] || row['SRA Expiry Date'] || '';
+        if (!sraExpiryStr) return false;
+        const sraDate = new Date(sraExpiryStr);
+        return !isNaN(sraDate.getTime()) && sraDate >= today;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a['SRA Expiry date'] || a['SRA Expiry Date']);
+        const dateB = new Date(b['SRA Expiry date'] || b['SRA Expiry Date']);
+        return dateA - dateB;
+      });
+    
     if (upcoming.length > 0) {
       const next = upcoming[0];
-      setNextSRA({ date: next['SRA Expiry date'], ship: next['Ship'], name: next['Name'], company: next['Invoice Address'] || '-' });
+      const sraDate = next['SRA Expiry date'] || next['SRA Expiry Date'];
+      setNextSRA({ 
+        date: sraDate, 
+        ship: next['Ship'] || next['ship'] || '-', 
+        name: next['Name'] || next['name'] || '-', 
+        company: next['Invoice Address'] || next['Invoice address'] || '-' 
+      });
+      console.log('Next SRA:', sraDate, next['Ship'], next['Name']);
     }
   };
 
