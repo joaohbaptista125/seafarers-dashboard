@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from './supabaseClient';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const INITIAL_WEEKLY_DATA = {
   weekNumber: 1,
@@ -119,8 +120,16 @@ export default function App() {
           .single();
 
         if (error) {
+          // PGRST116 means no rows found - this is OK for first load
+          if (error.code === 'PGRST116') {
+            console.log('No data in Supabase yet, starting fresh');
+            setSyncStatus('synced');
+            setIsInitialLoad(false);
+            return;
+          }
           console.error('Supabase load error:', error);
           setSyncStatus('error');
+          setIsInitialLoad(false);
           return;
         }
 
@@ -356,23 +365,27 @@ export default function App() {
   // Helper function to convert Excel serial date to JS Date
   const excelDateToJS = (excelDate) => {
     if (typeof excelDate === 'number') {
-      // Excel serial date (days since 1900-01-01, with leap year bug)
-      // Use UTC to avoid timezone issues
-      const utcDays = excelDate - 25569;
-      const utcDate = new Date(Date.UTC(1970, 0, 1));
-      utcDate.setUTCDate(utcDate.getUTCDate() + utcDays);
-      return utcDate;
+      // Excel serial date (days since 1899-12-30, accounting for Excel's leap year bug)
+      // Excel incorrectly treats 1900 as a leap year, so we need to adjust
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Dec 30, 1899
+      const days = Math.floor(excelDate);
+      const result = new Date(excelEpoch);
+      result.setUTCDate(result.getUTCDate() + days);
+      return result;
     } else if (typeof excelDate === 'string' && excelDate) {
-      // Handle string dates - parse as local date
-      const parts = excelDate.split(/[-/]/);
+      // Handle string dates
+      const trimmed = excelDate.trim();
+      // Try ISO format first (YYYY-MM-DD)
+      if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+        const [year, month, day] = trimmed.split('T')[0].split('-').map(Number);
+        return new Date(Date.UTC(year, month - 1, day));
+      }
+      // Try DD/MM/YYYY or DD-MM-YYYY
+      const parts = trimmed.split(/[-/]/);
       if (parts.length === 3) {
-        // Try to detect format (DD-MM-YYYY vs YYYY-MM-DD)
-        if (parts[0].length === 4) {
-          // YYYY-MM-DD
-          return new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
-        } else {
-          // DD-MM-YYYY or MM-DD-YYYY - assume DD-MM-YYYY
-          return new Date(Date.UTC(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])));
+        const [d, m, y] = parts.map(Number);
+        if (y > 1900) {
+          return new Date(Date.UTC(y, m - 1, d));
         }
       }
       return new Date(excelDate);
@@ -934,6 +947,63 @@ export default function App() {
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Weekly Endorsements Chart */}
+            {Object.keys(weeklyHistory).length > 0 && (
+              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="bg-green-700 text-white px-6 py-4">
+                  <h2 className="text-xl font-bold">📈 Evolução Semanal de Endorsements</h2>
+                </div>
+                <div className="p-4">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart
+                      data={[
+                        ...Object.entries(weeklyHistory)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([weekKey, data]) => ({
+                            week: weekKey.replace(/^\d{4}-W/, 'S'),
+                            endorsements: typeof data === 'object' ? data.endorsements : data,
+                            certificates: typeof data === 'object' ? data.certificates : 0
+                          })),
+                        // Add current week if it has data
+                        ...(totals.perEndorsement > 0 ? [{
+                          week: `S${weeklyData?.weekNumber || '?'}*`,
+                          endorsements: totals.perEndorsement,
+                          certificates: totals.appCert
+                        }] : [])
+                      ]}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                      <XAxis dataKey="week" stroke="#666" fontSize={12} />
+                      <YAxis stroke="#666" fontSize={12} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '8px' }}
+                        labelStyle={{ fontWeight: 'bold' }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="endorsements" 
+                        stroke="#16a34a" 
+                        strokeWidth={3}
+                        dot={{ fill: '#16a34a', strokeWidth: 2, r: 5 }}
+                        activeDot={{ r: 8 }}
+                        name="Endorsements"
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="certificates" 
+                        stroke="#2563eb" 
+                        strokeWidth={2}
+                        dot={{ fill: '#2563eb', strokeWidth: 2, r: 4 }}
+                        name="Certificados"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <p className="text-gray-400 text-xs text-center mt-2">* Semana atual (em progresso)</p>
+                </div>
               </div>
             )}
 
