@@ -94,6 +94,15 @@ export default function App() {
   const [newCorrectionNote, setNewCorrectionNote] = useState('');
   const [lastSaved, setLastSaved] = useState(null);
   
+  // Report editing states
+  const [reportNotes, setReportNotes] = useState(() => 
+    loadSavedData('seafarers_reportNotes', {
+      note1: 'This week we received a total of {endorsements} endorsements.',
+      note2: 'This week we received {applications} applications - we have submitted {certificates} certificates.',
+      extraNotes: ''
+    })
+  );
+  
   // Supabase sync states
   const [syncStatus, setSyncStatus] = useState('loading'); // 'loading', 'synced', 'error', 'saving'
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -348,11 +357,36 @@ export default function App() {
   const excelDateToJS = (excelDate) => {
     if (typeof excelDate === 'number') {
       // Excel serial date (days since 1900-01-01, with leap year bug)
-      return new Date((excelDate - 25569) * 86400 * 1000);
+      // Use UTC to avoid timezone issues
+      const utcDays = excelDate - 25569;
+      const utcDate = new Date(Date.UTC(1970, 0, 1));
+      utcDate.setUTCDate(utcDate.getUTCDate() + utcDays);
+      return utcDate;
     } else if (typeof excelDate === 'string' && excelDate) {
+      // Handle string dates - parse as local date
+      const parts = excelDate.split(/[-/]/);
+      if (parts.length === 3) {
+        // Try to detect format (DD-MM-YYYY vs YYYY-MM-DD)
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD
+          return new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
+        } else {
+          // DD-MM-YYYY or MM-DD-YYYY - assume DD-MM-YYYY
+          return new Date(Date.UTC(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])));
+        }
+      }
       return new Date(excelDate);
     }
     return null;
+  };
+
+  // Format date for display (avoids timezone issues)
+  const formatDate = (date) => {
+    if (!date || isNaN(date.getTime())) return '-';
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   // Process CSV file (used by both click and drag & drop)
@@ -521,6 +555,8 @@ export default function App() {
 
   const findNextSRA = (data) => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     const upcoming = data
       .filter(row => {
         const sraExpiryRaw = row['SRA Expiry date'] || row['SRA Expiry Date'] || '';
@@ -538,7 +574,7 @@ export default function App() {
       const next = upcoming[0];
       const sraDateRaw = next['SRA Expiry date'] || next['SRA Expiry Date'];
       const sraDate = excelDateToJS(sraDateRaw);
-      const formattedDate = sraDate ? sraDate.toISOString().split('T')[0] : '-';
+      const formattedDate = formatDate(sraDate);
       
       setNextSRA({ 
         date: formattedDate, 
@@ -619,7 +655,20 @@ export default function App() {
     const reportDate = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
     
     const weeklyHistoryEntries = Object.entries(weeklyHistory).slice(-4);
-    const weeklyTotal = weeklyHistoryEntries.reduce((sum, [_, val]) => sum + val, 0) + totals.perEndorsement;
+    const weeklyTotal = weeklyHistoryEntries.reduce((sum, [_, val]) => sum + (typeof val === 'object' ? val.endorsements : val), 0) + totals.perEndorsement;
+    
+    // Process notes with variable replacement
+    const processedNote1 = reportNotes.note1
+      .replace('{endorsements}', totals.perEndorsement)
+      .replace('{applications}', totals.appSeafarer)
+      .replace('{certificates}', totals.appCert);
+    const processedNote2 = reportNotes.note2
+      .replace('{endorsements}', totals.perEndorsement)
+      .replace('{applications}', totals.appSeafarer)
+      .replace('{certificates}', totals.appCert);
+    const extraNotesHtml = reportNotes.extraNotes 
+      ? reportNotes.extraNotes.split('\n').filter(line => line.trim()).map(line => `<p>• ${line}</p>`).join('')
+      : '';
     
     const htmlContent = `<!DOCTYPE html>
 <html>
@@ -648,15 +697,19 @@ export default function App() {
   <div class="section-title">Week ${weeklyData.weekNumber} - Endorsements Received</div>
   <table>
     <tr><th>End Received</th><th>Per Seafarer</th><th>Per Endorsement Issued</th></tr>
-    ${weeklyHistoryEntries.map(([week, val]) => `<tr><td>Week ${week}</td><td>-</td><td>${val}</td></tr>`).join('')}
+    ${weeklyHistoryEntries.map(([week, val]) => {
+      const endorsements = typeof val === 'object' ? val.endorsements : val;
+      return `<tr><td>Week ${week.replace(/^\d{4}-W/, '')}</td><td>-</td><td>${endorsements}</td></tr>`;
+    }).join('')}
     <tr><td>Week ${weeklyData.weekNumber}</td><td>${totals.perSeafarer}</td><td>${totals.perEndorsement}</td></tr>
     <tr class="total-row"><td>Total</td><td>-</td><td>${weeklyTotal}</td></tr>
   </table>
   
   <div class="section-title">Notes</div>
   <div class="notes">
-    <p>• This week we received a total of ${totals.perEndorsement} endorsements.</p>
-    <p>• This week we received ${totals.appSeafarer} applications - we have submitted ${totals.appCert} certificates.</p>
+    <p>• ${processedNote1}</p>
+    <p>• ${processedNote2}</p>
+    ${extraNotesHtml}
   </div>
   
   ${nextSRA ? `
@@ -746,6 +799,12 @@ export default function App() {
             className={`px-6 py-4 font-medium transition-colors ${activeTab === 'crewboard' ? 'text-red-700 border-b-2 border-red-700 bg-red-50' : 'text-gray-500 hover:text-gray-700'}`}
           >
             📋 Crewboard
+          </button>
+          <button 
+            onClick={() => setActiveTab('report')} 
+            className={`px-6 py-4 font-medium transition-colors ${activeTab === 'report' ? 'text-red-700 border-b-2 border-red-700 bg-red-50' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            📄 Report
           </button>
         </div>
       </div>
@@ -1206,6 +1265,147 @@ export default function App() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'report' && (
+          <div className="space-y-6">
+            {/* Report Header */}
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">📄 Editar Relatório Semanal</h2>
+              <p className="text-gray-600">Edita as notas e informações antes de gerar o relatório.</p>
+            </div>
+
+            {/* Notes Section */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="bg-red-700 text-white px-6 py-4">
+                <h3 className="font-bold">📝 Notas do Relatório</h3>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nota 1 (Endorsements recebidos)</label>
+                  <input
+                    type="text"
+                    value={reportNotes.note1}
+                    onChange={(e) => {
+                      const newNotes = { ...reportNotes, note1: e.target.value };
+                      setReportNotes(newNotes);
+                      localStorage.setItem('seafarers_reportNotes', JSON.stringify(newNotes));
+                    }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-red-500 focus:outline-none"
+                    placeholder="This week we received a total of {endorsements} endorsements."
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Use {'{endorsements}'} para inserir o número automaticamente</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nota 2 (Applications/Certificates)</label>
+                  <input
+                    type="text"
+                    value={reportNotes.note2}
+                    onChange={(e) => {
+                      const newNotes = { ...reportNotes, note2: e.target.value };
+                      setReportNotes(newNotes);
+                      localStorage.setItem('seafarers_reportNotes', JSON.stringify(newNotes));
+                    }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-red-500 focus:outline-none"
+                    placeholder="This week we received {applications} applications..."
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Use {'{applications}'} e {'{certificates}'} para inserir números automaticamente</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Notas Extra (opcional)</label>
+                  <textarea
+                    value={reportNotes.extraNotes}
+                    onChange={(e) => {
+                      const newNotes = { ...reportNotes, extraNotes: e.target.value };
+                      setReportNotes(newNotes);
+                      localStorage.setItem('seafarers_reportNotes', JSON.stringify(newNotes));
+                    }}
+                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-red-500 focus:outline-none h-24"
+                    placeholder="Adiciona notas extras aqui... (cada linha será um bullet point)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Next SRA Edit */}
+            {nextSRA && (
+              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="bg-orange-600 text-white px-6 py-4">
+                  <h3 className="font-bold">⚠️ Próximo SRA a Expirar</h3>
+                </div>
+                <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Data</label>
+                    <input
+                      type="text"
+                      value={nextSRA.date}
+                      onChange={(e) => setNextSRA({ ...nextSRA, date: e.target.value })}
+                      className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Navio</label>
+                    <input
+                      type="text"
+                      value={nextSRA.ship}
+                      onChange={(e) => setNextSRA({ ...nextSRA, ship: e.target.value })}
+                      className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Marítimo</label>
+                    <input
+                      type="text"
+                      value={nextSRA.name}
+                      onChange={(e) => setNextSRA({ ...nextSRA, name: e.target.value })}
+                      className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Empresa</label>
+                    <input
+                      type="text"
+                      value={nextSRA.company}
+                      onChange={(e) => setNextSRA({ ...nextSRA, company: e.target.value })}
+                      className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Preview Section */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="bg-gray-700 text-white px-6 py-4">
+                <h3 className="font-bold">👁️ Pré-visualização das Notas</h3>
+              </div>
+              <div className="p-6">
+                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  <p className="text-gray-700">• {reportNotes.note1
+                    .replace('{endorsements}', totals.perEndorsement)
+                    .replace('{applications}', totals.appSeafarer)
+                    .replace('{certificates}', totals.appCert)
+                  }</p>
+                  <p className="text-gray-700">• {reportNotes.note2
+                    .replace('{endorsements}', totals.perEndorsement)
+                    .replace('{applications}', totals.appSeafarer)
+                    .replace('{certificates}', totals.appCert)
+                  }</p>
+                  {reportNotes.extraNotes && reportNotes.extraNotes.split('\n').filter(line => line.trim()).map((line, i) => (
+                    <p key={i} className="text-gray-700">• {line}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Generate Button */}
+            <button 
+              onClick={generatePDFReport} 
+              className="w-full bg-gradient-to-r from-red-700 to-red-600 hover:from-red-800 hover:to-red-700 text-white px-8 py-4 rounded-xl font-semibold shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 text-lg"
+            >
+              📄 Gerar Relatório Semanal
+            </button>
           </div>
         )}
       </div>
