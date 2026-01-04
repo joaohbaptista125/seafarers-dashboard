@@ -567,15 +567,16 @@ export default function App() {
   };
 
   const findNextSRA = (data) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use UTC for today to match SRA dates
+    const now = new Date();
+    const todayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
     
     const upcoming = data
       .filter(row => {
         const sraExpiryRaw = row['SRA Expiry date'] || row['SRA Expiry Date'] || '';
         if (!sraExpiryRaw && sraExpiryRaw !== 0) return false;
         const sraDate = excelDateToJS(sraExpiryRaw);
-        return sraDate && !isNaN(sraDate.getTime()) && sraDate >= today;
+        return sraDate && !isNaN(sraDate.getTime()) && sraDate > todayUTC;
       })
       .sort((a, b) => {
         const dateA = excelDateToJS(a['SRA Expiry date'] || a['SRA Expiry Date']);
@@ -595,7 +596,7 @@ export default function App() {
         name: next['Name'] || next['name'] || '-', 
         company: next['Invoice Address'] || next['Invoice address'] || '-' 
       });
-      console.log('Next SRA:', formattedDate, next['Ship'], next['Name']);
+      console.log('Next SRA:', formattedDate, sraDateRaw, next['Ship'], next['Name']);
     }
   };
 
