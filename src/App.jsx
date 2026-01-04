@@ -78,16 +78,6 @@ const getCurrentWeek = () => {
   return Math.ceil(diff / oneWeek);
 };
 
-// Historical data - update these as needed
-const MONTHLY_DATA = {
-  '2024-10': 1013, '2024-11': 1139, '2024-12': 1345,
-  '2025-01': 745, '2025-02': 875, '2025-03': 1061,
-  '2025-04': 1084, '2025-05': 1315, '2025-06': 1029,
-  '2025-07': 2178, '2025-08': 1398, '2025-09': 1090,
-};
-
-const WEEKLY_HISTORY = { 44: 488, 45: 489, 46: 397, 47: 426 };
-
 export default function App() {
   const [weeklyData, setWeeklyData] = useState(() => 
     loadSavedData('seafarers_weeklyData', { ...INITIAL_WEEKLY_DATA, weekNumber: getCurrentWeek() })
@@ -100,8 +90,7 @@ export default function App() {
     loadSavedData('seafarers_nextSRA', null)
   );
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [monthlyData, setMonthlyData] = useState(MONTHLY_DATA);
-  const [weeklyHistory, setWeeklyHistory] = useState(WEEKLY_HISTORY);
+  const [weeklyHistory, setWeeklyHistory] = useState({});
   const [newCorrectionNote, setNewCorrectionNote] = useState('');
   const [lastSaved, setLastSaved] = useState(null);
   
@@ -139,6 +128,10 @@ export default function App() {
             setNextSRA(data.next_sra);
             localStorage.setItem('seafarers_nextSRA', JSON.stringify(data.next_sra));
           }
+          if (data.weekly_history) {
+            setWeeklyHistory(data.weekly_history);
+            localStorage.setItem('seafarers_weeklyHistory', JSON.stringify(data.weekly_history));
+          }
           setLastSaved(data.updated_at ? new Date(data.updated_at) : null);
         }
         
@@ -164,6 +157,7 @@ export default function App() {
           if (data.weekly_data) setWeeklyData(data.weekly_data);
           if (data.outstanding_end) setOutstandingEnd(data.outstanding_end);
           if (data.next_sra) setNextSRA(data.next_sra);
+          if (data.weekly_history) setWeeklyHistory(data.weekly_history);
           setLastSaved(data.updated_at ? new Date(data.updated_at) : null);
           setSyncStatus('synced');
         }
@@ -176,7 +170,7 @@ export default function App() {
   }, []);
 
   // Save to Supabase with debounce
-  const saveToSupabase = useCallback(async (weeklyDataVal, outstandingEndVal, nextSRAVal) => {
+  const saveToSupabase = useCallback(async (weeklyDataVal, outstandingEndVal, nextSRAVal, weeklyHistoryVal) => {
     if (isInitialLoad) return;
     
     setSyncStatus('saving');
@@ -189,6 +183,7 @@ export default function App() {
           weekly_data: weeklyDataVal,
           outstanding_end: outstandingEndVal,
           next_sra: nextSRAVal,
+          weekly_history: weeklyHistoryVal,
           updated_at: new Date().toISOString()
         });
 
@@ -213,6 +208,7 @@ export default function App() {
     localStorage.setItem('seafarers_weeklyData', JSON.stringify(weeklyData));
     if (outstandingEnd) localStorage.setItem('seafarers_outstandingEnd', JSON.stringify(outstandingEnd));
     if (nextSRA) localStorage.setItem('seafarers_nextSRA', JSON.stringify(nextSRA));
+    if (weeklyHistory) localStorage.setItem('seafarers_weeklyHistory', JSON.stringify(weeklyHistory));
     
     // Debounce Supabase save
     if (saveTimeoutRef.current) {
@@ -220,7 +216,7 @@ export default function App() {
     }
     
     saveTimeoutRef.current = setTimeout(() => {
-      saveToSupabase(weeklyData, outstandingEnd, nextSRA);
+      saveToSupabase(weeklyData, outstandingEnd, nextSRA, weeklyHistory);
     }, 1000); // Wait 1 second before saving
     
     return () => {
@@ -228,7 +224,7 @@ export default function App() {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [weeklyData, outstandingEnd, nextSRA, isInitialLoad, saveToSupabase]);
+  }, [weeklyData, outstandingEnd, nextSRA, weeklyHistory, isInitialLoad, saveToSupabase]);
 
   // Function to reset all data for new week
   const resetForNewWeek = async () => {
@@ -260,15 +256,77 @@ export default function App() {
 
   const calculateTotals = useCallback(() => {
     let perSeafarer = 0, perEndorsement = 0, appSeafarer = 0, appCert = 0;
-    Object.values(weeklyData.days).forEach(day => {
-      const [es, ee] = day.endorsementsReceived.split('/').map(n => parseInt(n) || 0);
-      const [as, ac] = day.applicationsReceived.split('/').map(n => parseInt(n) || 0);
-      perSeafarer += es; perEndorsement += ee; appSeafarer += as; appCert += ac;
-    });
+    if (weeklyData?.days) {
+      Object.values(weeklyData.days).forEach(day => {
+        if (day) {
+          const endorsementsReceived = day.endorsementsReceived || '0/0';
+          const applicationsReceived = day.applicationsReceived || '0/0';
+          const [es, ee] = String(endorsementsReceived).split('/').map(n => parseInt(n) || 0);
+          const [as, ac] = String(applicationsReceived).split('/').map(n => parseInt(n) || 0);
+          perSeafarer += es; perEndorsement += ee; appSeafarer += as; appCert += ac;
+        }
+      });
+    }
     return { perSeafarer, perEndorsement, appSeafarer, appCert };
   }, [weeklyData]);
 
   const totals = calculateTotals();
+
+  // Helper function to get month from week number and year
+  const getMonthFromWeek = (weekNum, year) => {
+    // Calculate the date of the Monday of that week
+    const jan1 = new Date(year, 0, 1);
+    const dayOfWeek = jan1.getDay();
+    const daysToMonday = dayOfWeek === 0 ? 1 : (dayOfWeek === 1 ? 0 : 8 - dayOfWeek);
+    const firstMonday = new Date(year, 0, 1 + daysToMonday);
+    const targetDate = new Date(firstMonday);
+    targetDate.setDate(firstMonday.getDate() + (weekNum - 1) * 7);
+    return targetDate.getMonth() + 1; // 1-12
+  };
+
+  // Calculate monthly data from weekly history
+  const monthlyData = React.useMemo(() => {
+    const result = {};
+    
+    Object.entries(weeklyHistory).forEach(([weekKey, data]) => {
+      // weekKey format: "2025-W01" or just week number with year in data
+      const year = data.year || 2025;
+      const month = data.month || getMonthFromWeek(data.weekNumber || parseInt(weekKey.split('-W')[1]) || 1, year);
+      const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+      
+      if (!result[monthKey]) {
+        result[monthKey] = { endorsements: 0, certificates: 0 };
+      }
+      result[monthKey].endorsements += data.endorsements || 0;
+      result[monthKey].certificates += data.certificates || 0;
+    });
+    
+    return result;
+  }, [weeklyHistory]);
+
+  // Save current week to history
+  const saveWeekToHistory = () => {
+    const weekNum = weeklyData.weekNumber;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = getMonthFromWeek(weekNum, year);
+    const weekKey = `${year}-W${String(weekNum).padStart(2, '0')}`;
+    
+    const newHistory = {
+      ...weeklyHistory,
+      [weekKey]: {
+        weekNumber: weekNum,
+        year: year,
+        month: month,
+        endorsements: totals.perEndorsement,
+        certificates: totals.appCert,
+        savedAt: new Date().toISOString()
+      }
+    };
+    
+    setWeeklyHistory(newHistory);
+    alert(`✅ Semana ${weekNum} guardada no histórico!\n\nEndorsements: ${totals.perEndorsement}\nCertificados: ${totals.appCert}`);
+  };
 
   // Helper function to convert Excel serial date to JS Date
   const excelDateToJS = (excelDate) => {
@@ -556,12 +614,14 @@ export default function App() {
   </table>
   ` : ''}
   
-  <div class="section-title">Monthly Overview - Endorsements Received</div>
+  <div class="section-title">Monthly Overview</div>
   <table class="green-header">
-    <tr><th>Month</th><th>Endorsements Received</th></tr>
-    ${Object.entries(monthlyData).map(([month, val]) => {
+    <tr><th>Month</th><th>Endorsements Received</th><th>Applications (Certificates)</th></tr>
+    ${Object.entries(monthlyData).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => {
       const date = new Date(month + '-01');
-      return `<tr><td>${date.toLocaleString('en', { month: 'long', year: 'numeric' })}</td><td>${val}</td></tr>`;
+      const endorsements = typeof data === 'object' ? data.endorsements : data;
+      const certificates = typeof data === 'object' ? data.certificates : 0;
+      return `<tr><td>${date.toLocaleString('en', { month: 'long', year: 'numeric' })}</td><td>${endorsements}</td><td>${certificates}</td></tr>`;
     }).join('')}
   </table>
 </body>
@@ -761,6 +821,13 @@ export default function App() {
                   />
                 </div>
                 <div className="flex gap-2">
+                  <button 
+                    onClick={saveWeekToHistory} 
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold shadow-md transition-all flex items-center gap-2"
+                    title="Guarda os dados desta semana no histórico mensal"
+                  >
+                    💾 Guardar Semana
+                  </button>
                   <button 
                     onClick={resetForNewWeek} 
                     className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-3 rounded-lg font-semibold shadow-md transition-all flex items-center gap-2"
@@ -1001,6 +1068,61 @@ export default function App() {
                   </ul>
                 )}
               </div>
+            </div>
+
+            {/* Monthly Overview */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="bg-green-700 text-white px-6 py-4">
+                <h2 className="text-xl font-bold">📊 Monthly Overview</h2>
+                <p className="text-green-200 text-sm">Dados acumulados das semanas guardadas</p>
+              </div>
+              <div className="p-4">
+                {Object.keys(monthlyData).length === 0 ? (
+                  <p className="text-gray-400 text-center py-8">Nenhum dado mensal ainda. Guarda semanas para ver o resumo mensal.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-green-50">
+                          <th className="p-3 text-left font-semibold text-gray-700">Mês</th>
+                          <th className="p-3 text-center font-semibold text-gray-700">Endorsements</th>
+                          <th className="p-3 text-center font-semibold text-gray-700">Certificados (Apps)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(monthlyData).sort(([a], [b]) => b.localeCompare(a)).map(([month, data]) => {
+                          const date = new Date(month + '-01');
+                          return (
+                            <tr key={month} className="border-b hover:bg-gray-50">
+                              <td className="p-3 font-medium">{date.toLocaleString('pt-PT', { month: 'long', year: 'numeric' })}</td>
+                              <td className="p-3 text-center text-green-700 font-bold">{data.endorsements}</td>
+                              <td className="p-3 text-center text-blue-700 font-bold">{data.certificates}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              
+              {/* Weekly History Details */}
+              {Object.keys(weeklyHistory).length > 0 && (
+                <div className="border-t">
+                  <div className="bg-gray-100 px-6 py-3">
+                    <h3 className="font-semibold text-gray-700">📅 Semanas Guardadas</h3>
+                  </div>
+                  <div className="p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                    {Object.entries(weeklyHistory).sort(([a], [b]) => b.localeCompare(a)).map(([weekKey, data]) => (
+                      <div key={weekKey} className="bg-gray-50 rounded-lg p-3 text-center text-sm">
+                        <div className="font-bold text-gray-700">{weekKey}</div>
+                        <div className="text-green-600">{data.endorsements} end.</div>
+                        <div className="text-blue-600">{data.certificates} cert.</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
