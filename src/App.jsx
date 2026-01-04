@@ -256,17 +256,33 @@ export default function App() {
 
   const calculateTotals = useCallback(() => {
     let perSeafarer = 0, perEndorsement = 0, appSeafarer = 0, appCert = 0;
-    if (weeklyData?.days) {
-      Object.values(weeklyData.days).forEach(day => {
-        if (day) {
-          const endorsementsReceived = day.endorsementsReceived || '0/0';
-          const applicationsReceived = day.applicationsReceived || '0/0';
-          const [es, ee] = String(endorsementsReceived).split('/').map(n => parseInt(n) || 0);
-          const [as, ac] = String(applicationsReceived).split('/').map(n => parseInt(n) || 0);
-          perSeafarer += es; perEndorsement += ee; appSeafarer += as; appCert += ac;
-        }
-      });
+    
+    // Check if weeklyData and days exist
+    if (!weeklyData || !weeklyData.days) {
+      return { perSeafarer: 0, perEndorsement: 0, appSeafarer: 0, appCert: 0 };
     }
+    
+    Object.values(weeklyData.days).forEach(day => {
+      if (day) {
+        // Handle endorsementsReceived
+        const endorsementsReceived = day.endorsementsReceived || '0/0';
+        const endorsementsParts = String(endorsementsReceived).split('/');
+        const es = parseInt(endorsementsParts[0]) || 0;
+        const ee = parseInt(endorsementsParts[1]) || 0;
+        
+        // Handle applicationsReceived
+        const applicationsReceived = day.applicationsReceived || '0/0';
+        const applicationsParts = String(applicationsReceived).split('/');
+        const as = parseInt(applicationsParts[0]) || 0;
+        const ac = parseInt(applicationsParts[1]) || 0;
+        
+        perSeafarer += es; 
+        perEndorsement += ee; 
+        appSeafarer += as; 
+        appCert += ac;
+      }
+    });
+    
     return { perSeafarer, perEndorsement, appSeafarer, appCert };
   }, [weeklyData]);
 
@@ -339,8 +355,8 @@ export default function App() {
     return null;
   };
 
-  const handleCSVUpload = (e) => {
-    const file = e.target.files[0];
+  // Process CSV file (used by both click and drag & drop)
+  const processCSVFile = (file) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -362,8 +378,51 @@ export default function App() {
     reader.readAsArrayBuffer(file);
   };
 
-  const handleExcelUpload = (e) => {
+  const handleCSVUpload = (e) => {
     const file = e.target.files[0];
+    processCSVFile(file);
+  };
+
+  // Drag & drop handlers
+  const [isDraggingCSV, setIsDraggingCSV] = useState(false);
+  const [isDraggingExcel, setIsDraggingExcel] = useState(false);
+
+  const handleDragOver = (e, type) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === 'csv') setIsDraggingCSV(true);
+    else setIsDraggingExcel(true);
+  };
+
+  const handleDragLeave = (e, type) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === 'csv') setIsDraggingCSV(false);
+    else setIsDraggingExcel(false);
+  };
+
+  const handleDropCSV = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingCSV(false);
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith('.csv') || file.type === 'text/csv')) {
+      processCSVFile(file);
+    }
+  };
+
+  const handleDropExcel = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingExcel(false);
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+      processExcelFile(file);
+    }
+  };
+
+  // Process Excel file (used by both click and drag & drop)
+  const processExcelFile = (file) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -399,6 +458,11 @@ export default function App() {
       }));
     };
     reader.readAsArrayBuffer(file);
+  };
+
+  const handleExcelUpload = (e) => {
+    const file = e.target.files[0];
+    processExcelFile(file);
   };
 
   const calculateOutstandingEnd = (data) => {
@@ -693,10 +757,19 @@ export default function App() {
             <div className="grid md:grid-cols-2 gap-4">
               <div className="bg-white rounded-xl shadow-md p-6">
                 <h2 className="font-semibold mb-4 text-gray-700">📁 Upload Zoho CSV</h2>
-                <label className="block border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-red-400 hover:bg-red-50 transition-all">
+                <label 
+                  className={`block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
+                    isDraggingCSV 
+                      ? 'border-red-500 bg-red-100 scale-105' 
+                      : 'border-gray-300 hover:border-red-400 hover:bg-red-50'
+                  }`}
+                  onDragOver={(e) => handleDragOver(e, 'csv')}
+                  onDragLeave={(e) => handleDragLeave(e, 'csv')}
+                  onDrop={handleDropCSV}
+                >
                   <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
-                  <div className="text-4xl mb-2">📄</div>
-                  <p className="text-gray-600">Click to upload CSV</p>
+                  <div className="text-4xl mb-2">{isDraggingCSV ? '📥' : '📄'}</div>
+                  <p className="text-gray-600">{isDraggingCSV ? 'Larga aqui!' : 'Clica ou arrasta CSV'}</p>
                   <p className="text-gray-400 text-sm mt-1">BMAREEndorsementsinprocess.csv</p>
                   {csvData && <p className="text-green-600 mt-3 font-medium">✅ {csvData.length} records loaded</p>}
                 </label>
@@ -704,10 +777,19 @@ export default function App() {
               
               <div className="bg-white rounded-xl shadow-md p-6">
                 <h2 className="font-semibold mb-4 text-gray-700">📊 Upload Weekly Excel</h2>
-                <label className="block border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all">
+                <label 
+                  className={`block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
+                    isDraggingExcel 
+                      ? 'border-green-500 bg-green-100 scale-105' 
+                      : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
+                  }`}
+                  onDragOver={(e) => handleDragOver(e, 'excel')}
+                  onDragLeave={(e) => handleDragLeave(e, 'excel')}
+                  onDrop={handleDropExcel}
+                >
                   <input type="file" accept=".xlsx,.xls" onChange={handleExcelUpload} className="hidden" />
-                  <div className="text-4xl mb-2">📈</div>
-                  <p className="text-gray-600">Click to upload Excel</p>
+                  <div className="text-4xl mb-2">{isDraggingExcel ? '📥' : '📈'}</div>
+                  <p className="text-gray-600">{isDraggingExcel ? 'Larga aqui!' : 'Clica ou arrasta Excel'}</p>
                   <p className="text-gray-400 text-sm mt-1">Week_XX.xlsx</p>
                 </label>
               </div>
@@ -716,16 +798,16 @@ export default function App() {
             {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-green-500">
-                <p className="text-gray-500 text-sm">Week {weeklyData.weekNumber} Endorsements</p>
-                <p className="text-3xl font-bold text-green-600 mt-1">{totals.perEndorsement}</p>
+                <p className="text-gray-500 text-sm">Week {weeklyData?.weekNumber || '-'} Endorsements</p>
+                <p className="text-3xl font-bold text-green-600 mt-1">{isNaN(totals.perEndorsement) ? 0 : totals.perEndorsement}</p>
               </div>
               <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500">
                 <p className="text-gray-500 text-sm">Applications</p>
-                <p className="text-3xl font-bold text-blue-600 mt-1">{totals.appSeafarer}</p>
+                <p className="text-3xl font-bold text-blue-600 mt-1">{isNaN(totals.appSeafarer) ? 0 : totals.appSeafarer}</p>
               </div>
               <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-purple-500">
                 <p className="text-gray-500 text-sm">Certificates</p>
-                <p className="text-3xl font-bold text-purple-600 mt-1">{totals.appCert}</p>
+                <p className="text-3xl font-bold text-purple-600 mt-1">{isNaN(totals.appCert) ? 0 : totals.appCert}</p>
               </div>
               <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-orange-500">
                 <p className="text-gray-500 text-sm">Outstanding (3 months)</p>
