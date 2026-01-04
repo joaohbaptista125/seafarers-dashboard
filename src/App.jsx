@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
+import { supabase } from './supabaseClient';
 
 const INITIAL_WEEKLY_DATA = {
   weekNumber: 1,
@@ -58,7 +59,7 @@ const INITIAL_WEEKLY_DATA = {
   correctionNotes: [] // Array of { id, text, completed }
 };
 
-// Load saved data from localStorage
+// Load saved data from localStorage (fallback while Supabase loads)
 const loadSavedData = (key, defaultValue) => {
   try {
     const saved = localStorage.getItem(key);
@@ -103,29 +104,134 @@ export default function App() {
   const [weeklyHistory, setWeeklyHistory] = useState(WEEKLY_HISTORY);
   const [newCorrectionNote, setNewCorrectionNote] = useState('');
   const [lastSaved, setLastSaved] = useState(null);
+  
+  // Supabase sync states
+  const [syncStatus, setSyncStatus] = useState('loading'); // 'loading', 'synced', 'error', 'saving'
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const saveTimeoutRef = useRef(null);
 
-  // Auto-save weeklyData to localStorage
+  // Load data from Supabase on mount
   useEffect(() => {
+    const loadFromSupabase = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('dashboard_data')
+          .select('*')
+          .eq('id', 1)
+          .single();
+
+        if (error) {
+          console.error('Supabase load error:', error);
+          setSyncStatus('error');
+          return;
+        }
+
+        if (data) {
+          if (data.weekly_data) {
+            setWeeklyData(data.weekly_data);
+            localStorage.setItem('seafarers_weeklyData', JSON.stringify(data.weekly_data));
+          }
+          if (data.outstanding_end) {
+            setOutstandingEnd(data.outstanding_end);
+            localStorage.setItem('seafarers_outstandingEnd', JSON.stringify(data.outstanding_end));
+          }
+          if (data.next_sra) {
+            setNextSRA(data.next_sra);
+            localStorage.setItem('seafarers_nextSRA', JSON.stringify(data.next_sra));
+          }
+          setLastSaved(data.updated_at ? new Date(data.updated_at) : null);
+        }
+        
+        setSyncStatus('synced');
+        setIsInitialLoad(false);
+      } catch (err) {
+        console.error('Failed to load from Supabase:', err);
+        setSyncStatus('error');
+        setIsInitialLoad(false);
+      }
+    };
+
+    loadFromSupabase();
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('dashboard_changes')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'dashboard_data' },
+        (payload) => {
+          console.log('Realtime update received:', payload);
+          const data = payload.new;
+          if (data.weekly_data) setWeeklyData(data.weekly_data);
+          if (data.outstanding_end) setOutstandingEnd(data.outstanding_end);
+          if (data.next_sra) setNextSRA(data.next_sra);
+          setLastSaved(data.updated_at ? new Date(data.updated_at) : null);
+          setSyncStatus('synced');
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Save to Supabase with debounce
+  const saveToSupabase = useCallback(async (weeklyDataVal, outstandingEndVal, nextSRAVal) => {
+    if (isInitialLoad) return;
+    
+    setSyncStatus('saving');
+    
+    try {
+      const { error } = await supabase
+        .from('dashboard_data')
+        .upsert({
+          id: 1,
+          weekly_data: weeklyDataVal,
+          outstanding_end: outstandingEndVal,
+          next_sra: nextSRAVal,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Supabase save error:', error);
+        setSyncStatus('error');
+      } else {
+        setSyncStatus('synced');
+        setLastSaved(new Date());
+      }
+    } catch (err) {
+      console.error('Failed to save to Supabase:', err);
+      setSyncStatus('error');
+    }
+  }, [isInitialLoad]);
+
+  // Debounced save effect
+  useEffect(() => {
+    if (isInitialLoad) return;
+    
+    // Also save to localStorage as backup
     localStorage.setItem('seafarers_weeklyData', JSON.stringify(weeklyData));
-    setLastSaved(new Date());
-  }, [weeklyData]);
-
-  // Auto-save outstandingEnd to localStorage
-  useEffect(() => {
-    if (outstandingEnd) {
-      localStorage.setItem('seafarers_outstandingEnd', JSON.stringify(outstandingEnd));
+    if (outstandingEnd) localStorage.setItem('seafarers_outstandingEnd', JSON.stringify(outstandingEnd));
+    if (nextSRA) localStorage.setItem('seafarers_nextSRA', JSON.stringify(nextSRA));
+    
+    // Debounce Supabase save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
-  }, [outstandingEnd]);
-
-  // Auto-save nextSRA to localStorage
-  useEffect(() => {
-    if (nextSRA) {
-      localStorage.setItem('seafarers_nextSRA', JSON.stringify(nextSRA));
-    }
-  }, [nextSRA]);
+    
+    saveTimeoutRef.current = setTimeout(() => {
+      saveToSupabase(weeklyData, outstandingEnd, nextSRA);
+    }, 1000); // Wait 1 second before saving
+    
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [weeklyData, outstandingEnd, nextSRA, isInitialLoad, saveToSupabase]);
 
   // Function to reset all data for new week
-  const resetForNewWeek = () => {
+  const resetForNewWeek = async () => {
     if (window.confirm('⚠️ Tens a certeza que queres limpar todos os dados e começar uma nova semana?')) {
       const newData = { ...INITIAL_WEEKLY_DATA, weekNumber: getCurrentWeek() };
       setWeeklyData(newData);
@@ -134,6 +240,21 @@ export default function App() {
       setCsvData(null);
       localStorage.removeItem('seafarers_outstandingEnd');
       localStorage.removeItem('seafarers_nextSRA');
+      
+      // Also clear Supabase
+      try {
+        await supabase
+          .from('dashboard_data')
+          .upsert({
+            id: 1,
+            weekly_data: newData,
+            outstanding_end: null,
+            next_sra: null,
+            updated_at: new Date().toISOString()
+          });
+      } catch (err) {
+        console.error('Failed to reset Supabase:', err);
+      }
     }
   };
 
@@ -223,47 +344,56 @@ export default function App() {
   };
 
   const calculateOutstandingEnd = (data) => {
-    const today = new Date();
-    const results = [];
-    
     console.log('Calculating Outstanding End...');
-    console.log('Today:', today);
     console.log('Sample row:', data[0]);
     
-    for (let i = 0; i < 3; i++) {
-      const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
-      const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
-      const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
-      const monthName = monthStart.toLocaleString('en', { month: 'long' });
-      let allCases = 0, canBeIssued = 0;
+    // First, find all unique months in the CSV
+    const monthsMap = new Map();
+    
+    data.forEach(row => {
+      const sraExpiryRaw = row['SRA Expiry date'] || row['SRA Expiry Date'] || '';
+      if (!sraExpiryRaw && sraExpiryRaw !== 0) return;
       
-      data.forEach(row => {
-        // Handle different possible column names
-        const sraExpiryRaw = row['SRA Expiry date'] || row['SRA Expiry Date'] || '';
-        if (!sraExpiryRaw && sraExpiryRaw !== 0) return;
-        
-        // Convert Excel serial date or string to Date
-        const sraExpiry = excelDateToJS(sraExpiryRaw);
-        if (!sraExpiry || isNaN(sraExpiry.getTime())) return;
-        
-        if (sraExpiry >= monthStart && sraExpiry <= monthEnd) {
-          const certs = ['COC Number', 'GOC Number', 'COP - 1 Number', 'COP - 2 Number'];
-          certs.forEach(cert => {
-            const certValue = row[cert];
-            if (certValue && String(certValue).trim()) {
-              allCases++;
-              const paidValue = row['Case paid to BMAR'];
-              if (paidValue && String(paidValue).trim()) {
-                canBeIssued++;
-              }
-            }
-          });
+      const sraExpiry = excelDateToJS(sraExpiryRaw);
+      if (!sraExpiry || isNaN(sraExpiry.getTime())) return;
+      
+      // Create a key for this month (YYYY-MM)
+      const monthKey = `${sraExpiry.getFullYear()}-${String(sraExpiry.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthsMap.has(monthKey)) {
+        monthsMap.set(monthKey, { allCases: 0, canBeIssued: 0 });
+      }
+      
+      const monthData = monthsMap.get(monthKey);
+      const hasPaid = row['Case paid to BMAR'] && String(row['Case paid to BMAR']).trim();
+      
+      const certs = ['COC Number', 'GOC Number', 'COP - 1 Number', 'COP - 2 Number'];
+      certs.forEach(cert => {
+        const certValue = row[cert];
+        if (certValue && String(certValue).trim()) {
+          monthData.allCases++;
+          if (hasPaid) {
+            monthData.canBeIssued++;
+          }
         }
       });
-      
-      console.log(`${monthName} ${targetDate.getFullYear()}: allCases=${allCases}, canBeIssued=${canBeIssued}`);
-      results.push({ month: monthName, allCases, canBeIssued });
-    }
+    });
+    
+    // Convert to array and sort by date
+    const results = Array.from(monthsMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([monthKey, data]) => {
+        const [year, month] = monthKey.split('-');
+        const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+        const monthName = date.toLocaleString('en', { month: 'long', year: 'numeric' });
+        return {
+          month: monthName,
+          allCases: data.allCases,
+          canBeIssued: data.canBeIssued
+        };
+      });
+    
+    console.log('Outstanding End results:', results);
     setOutstandingEnd(results);
   };
 
@@ -418,9 +548,9 @@ export default function App() {
   ` : ''}
   
   ${outstandingEnd ? `
-  <div class="section-title">Outstanding End - Next 3 Months</div>
+  <div class="section-title">Outstanding End</div>
   <table>
-    <tr><th>Outstanding End</th><th>All Cases</th><th>Can Be Issued</th></tr>
+    <tr><th>Month</th><th>All Cases</th><th>Can Be Issued</th></tr>
     ${outstandingEnd.map(item => `<tr><td>${item.month}</td><td>${item.allCases}</td><td>${item.canBeIssued}</td></tr>`).join('')}
     <tr class="total-row"><td>Total</td><td>${outstandingEnd.reduce((a,b) => a + b.allCases, 0)}</td><td>${outstandingEnd.reduce((a,b) => a + b.canBeIssued, 0)}</td></tr>
   </table>
@@ -460,11 +590,20 @@ export default function App() {
             <p className="text-red-200 text-sm">Portugal Flag - Endorsements 🇵🇹</p>
           </div>
           <div className="text-right">
-            {lastSaved && (
-              <p className="text-red-200 text-xs">
-                💾 Guardado: {lastSaved.toLocaleTimeString('pt-PT')}
-              </p>
-            )}
+            <p className="text-red-200 text-xs flex items-center gap-2 justify-end">
+              {syncStatus === 'loading' && (
+                <><span className="animate-pulse">⏳</span> A carregar...</>
+              )}
+              {syncStatus === 'saving' && (
+                <><span className="animate-pulse">💾</span> A guardar...</>
+              )}
+              {syncStatus === 'synced' && (
+                <><span className="text-green-300">☁️</span> Sincronizado {lastSaved && `• ${lastSaved.toLocaleTimeString('pt-PT')}`}</>
+              )}
+              {syncStatus === 'error' && (
+                <><span className="text-yellow-300">⚠️</span> Offline (localStorage)</>
+              )}
+            </p>
           </div>
         </div>
       </div>
@@ -565,7 +704,7 @@ export default function App() {
             {outstandingEnd && (
               <div className="bg-white rounded-xl shadow-md overflow-hidden">
                 <div className="bg-gray-800 text-white px-6 py-4">
-                  <h3 className="font-semibold">Outstanding End - Next 3 Months</h3>
+                  <h3 className="font-semibold">Outstanding End</h3>
                 </div>
                 <table className="w-full">
                   <thead>
