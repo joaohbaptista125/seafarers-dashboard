@@ -366,9 +366,9 @@ export default function App() {
   const excelDateToJS = (excelDate) => {
     if (typeof excelDate === 'number') {
       // Excel serial date (days since 1899-12-30, accounting for Excel's leap year bug)
-      // Excel incorrectly treats 1900 as a leap year, so we need to adjust
+      // Round to nearest day to handle times close to midnight
       const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Dec 30, 1899
-      const days = Math.floor(excelDate);
+      const days = Math.round(excelDate); // Round instead of floor to handle .999... cases
       const result = new Date(excelEpoch);
       result.setUTCDate(result.getUTCDate() + days);
       return result;
