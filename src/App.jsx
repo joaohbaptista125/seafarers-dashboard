@@ -323,9 +323,11 @@ export default function App() {
     const result = {};
     
     Object.entries(weeklyHistory).forEach(([weekKey, data]) => {
-      // weekKey format: "2025-W01" or just week number with year in data
-      const year = data.year || 2025;
-      const month = data.month || getMonthFromWeek(data.weekNumber || parseInt(weekKey.split('-W')[1]) || 1, year);
+      // weekKey format: "2025-W49" - extract year from key (more reliable than data.year)
+      const [keyYear, keyWeek] = weekKey.split('-W');
+      const year = parseInt(keyYear) || data.year || 2025;
+      const weekNum = parseInt(keyWeek) || data.weekNumber || 1;
+      const month = getMonthFromWeek(weekNum, year);
       const monthKey = `${year}-${String(month).padStart(2, '0')}`;
       
       if (!result[monthKey]) {
@@ -342,20 +344,30 @@ export default function App() {
   const saveWeekToHistory = () => {
     const weekNum = weeklyData.weekNumber;
     const now = new Date();
-    let year = now.getFullYear();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-11
     
-    // Adjust year for weeks at year boundaries
-    // If we're in January but week number is >= 50, it's from the previous year
-    if (now.getMonth() === 0 && weekNum >= 50) {
-      year = year - 1;
-    }
-    // If we're in December but week number is <= 2, it's from the next year
-    if (now.getMonth() === 11 && weekNum <= 2) {
-      year = year + 1;
+    // Determine the correct year for this week
+    let year;
+    if (weekNum >= 49 && currentMonth <= 1) {
+      // Weeks 49-53 in January/February belong to previous year
+      year = currentYear - 1;
+    } else if (weekNum <= 2 && currentMonth >= 10) {
+      // Weeks 1-2 in November/December belong to next year
+      year = currentYear + 1;
+    } else {
+      year = currentYear;
     }
     
     const month = getMonthFromWeek(weekNum, year);
     const weekKey = `${year}-W${String(weekNum).padStart(2, '0')}`;
+    
+    // Check if already exists
+    if (weeklyHistory[weekKey]) {
+      if (!confirm(`Semana ${weekNum} de ${year} já existe. Queres substituir?`)) {
+        return;
+      }
+    }
     
     const newHistory = {
       ...weeklyHistory,
@@ -689,8 +701,22 @@ export default function App() {
     // Sort all weeks chronologically
     const allWeeks = Object.entries(weeklyHistory).sort(([a], [b]) => a.localeCompare(b));
     
+    // Calculate the correct year for current week (same logic as saveWeekToHistory)
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const weekNum = weeklyData?.weekNumber || 0;
+    let weekYear;
+    if (weekNum >= 49 && currentMonth <= 1) {
+      weekYear = currentYear - 1;
+    } else if (weekNum <= 2 && currentMonth >= 10) {
+      weekYear = currentYear + 1;
+    } else {
+      weekYear = currentYear;
+    }
+    
     // Check if current week is already in history
-    const currentWeekKey = `${new Date().getFullYear()}-W${String(weeklyData?.weekNumber || 0).padStart(2, '0')}`;
+    const currentWeekKey = `${weekYear}-W${String(weekNum).padStart(2, '0')}`;
     const currentWeekInHistory = weeklyHistory[currentWeekKey];
     
     let weeklyHistoryEntries;
