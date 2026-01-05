@@ -754,10 +754,28 @@ export default function App() {
   const generatePDFReport = () => {
     const reportDate = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
     
-    // Sort all weeks chronologically
-    const allWeeks = Object.entries(weeklyHistory).sort(([a], [b]) => a.localeCompare(b));
+    // Group weekly history by week number (combine split weeks)
+    const weeklyTotals = {};
+    Object.entries(weeklyHistory).forEach(([weekKey, data]) => {
+      // Extract year and week number from key (handles "2025-W53" and "2025-W53-2025-12")
+      const match = weekKey.match(/^(\d{4})-W(\d+)/);
+      if (match) {
+        const [, year, weekNum] = match;
+        const simpleKey = `${year}-W${weekNum}`;
+        
+        if (!weeklyTotals[simpleKey]) {
+          weeklyTotals[simpleKey] = { endorsements: 0, seafarers: 0, certificates: 0, weekNumber: parseInt(weekNum) };
+        }
+        weeklyTotals[simpleKey].endorsements += data.endorsements || 0;
+        weeklyTotals[simpleKey].seafarers += data.seafarers || 0;
+        weeklyTotals[simpleKey].certificates += data.certificates || 0;
+      }
+    });
     
-    // Calculate the correct year for current week (same logic as saveWeekToHistory)
+    // Sort and get last 5 weeks
+    const sortedWeeks = Object.entries(weeklyTotals).sort(([a], [b]) => a.localeCompare(b));
+    
+    // Calculate the correct year for current week
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
@@ -771,25 +789,25 @@ export default function App() {
       weekYear = currentYear;
     }
     
-    // Check if current week is already in history (check both formats)
+    // Check if current week is already in history
     const currentWeekKey = `${weekYear}-W${String(weekNum).padStart(2, '0')}`;
-    const currentWeekInHistory = Object.keys(weeklyHistory).some(key => key.startsWith(currentWeekKey));
+    const currentWeekInHistory = weeklyTotals[currentWeekKey];
     
     let weeklyHistoryEntries;
     let showCurrentWeek = false;
     
     if (currentWeekInHistory) {
       // Current week is saved - show last 5 from history only
-      weeklyHistoryEntries = allWeeks.slice(-5);
+      weeklyHistoryEntries = sortedWeeks.slice(-5);
     } else {
       // Current week not saved - show last 4 from history + current week
-      weeklyHistoryEntries = allWeeks.slice(-4);
+      weeklyHistoryEntries = sortedWeeks.slice(-4);
       showCurrentWeek = true;
     }
     
     // Calculate totals
-    const historyEndorsements = weeklyHistoryEntries.reduce((sum, [_, val]) => sum + (typeof val === 'object' ? val.endorsements : val), 0);
-    const historySeafarers = weeklyHistoryEntries.reduce((sum, [_, val]) => sum + (typeof val === 'object' ? (val.seafarers || 0) : 0), 0);
+    const historyEndorsements = weeklyHistoryEntries.reduce((sum, [_, val]) => sum + val.endorsements, 0);
+    const historySeafarers = weeklyHistoryEntries.reduce((sum, [_, val]) => sum + val.seafarers, 0);
     
     const totalEndorsements = historyEndorsements + (showCurrentWeek ? totals.perEndorsement : 0);
     const totalSeafarers = historySeafarers + (showCurrentWeek ? totals.perSeafarer : 0);
@@ -835,11 +853,8 @@ export default function App() {
   <table>
     <tr><th>Week</th><th>Per Seafarer</th><th>Per Endorsement Issued</th></tr>
     ${weeklyHistoryEntries.map(([week, val]) => {
-      const endorsements = typeof val === 'object' ? val.endorsements : val;
-      const seafarers = typeof val === 'object' ? (val.seafarers || '-') : '-';
-      // Extract week number - handles both "2025-W53" and "2025-W53-2026-01" formats
       const weekNum = week.match(/W(\d+)/)?.[1] || week;
-      return `<tr><td>${weekNum}</td><td>${seafarers}</td><td>${endorsements}</td></tr>`;
+      return `<tr><td>${weekNum}</td><td>${val.seafarers || '-'}</td><td>${val.endorsements}</td></tr>`;
     }).join('')}
     ${showCurrentWeek ? `<tr><td>${weeklyData?.weekNumber || '-'}</td><td>${totals.perSeafarer}</td><td>${totals.perEndorsement}</td></tr>` : ''}
     <tr class="total-row"><td>Total</td><td>${totalSeafarers}</td><td>${totalEndorsements}</td></tr>
@@ -1088,21 +1103,33 @@ export default function App() {
                 <div className="p-4">
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart
-                      data={[
-                        ...Object.entries(weeklyHistory)
-                          .sort(([a], [b]) => a.localeCompare(b))
-                          .map(([weekKey, data]) => ({
-                            week: 'S' + (weekKey.match(/W(\d+)/)?.[1] || weekKey),
-                            endorsements: typeof data === 'object' ? data.endorsements : data,
-                            certificates: typeof data === 'object' ? data.certificates : 0
-                          })),
-                        // Add current week if it has data
-                        ...(totals.perEndorsement > 0 ? [{
-                          week: `S${weeklyData?.weekNumber || '?'}*`,
-                          endorsements: totals.perEndorsement,
-                          certificates: totals.appCert
-                        }] : [])
-                      ]}
+                      data={(() => {
+                        // Group by week number
+                        const grouped = {};
+                        Object.entries(weeklyHistory).forEach(([weekKey, data]) => {
+                          const weekNum = weekKey.match(/W(\d+)/)?.[1] || '0';
+                          const simpleKey = weekKey.match(/^(\d{4}-W\d+)/)?.[1] || weekKey;
+                          if (!grouped[simpleKey]) {
+                            grouped[simpleKey] = { endorsements: 0, certificates: 0 };
+                          }
+                          grouped[simpleKey].endorsements += data.endorsements || 0;
+                          grouped[simpleKey].certificates += data.certificates || 0;
+                        });
+                        return [
+                          ...Object.entries(grouped)
+                            .sort(([a], [b]) => a.localeCompare(b))
+                            .map(([weekKey, data]) => ({
+                              week: 'S' + (weekKey.match(/W(\d+)/)?.[1] || weekKey),
+                              endorsements: data.endorsements,
+                              certificates: data.certificates
+                            })),
+                          ...(totals.perEndorsement > 0 ? [{
+                            week: `S${weeklyData?.weekNumber || '?'}*`,
+                            endorsements: totals.perEndorsement,
+                            certificates: totals.appCert
+                          }] : [])
+                        ];
+                      })()}
                       margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
