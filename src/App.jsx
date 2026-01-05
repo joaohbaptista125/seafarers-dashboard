@@ -353,13 +353,14 @@ export default function App() {
         year: year,
         month: month,
         endorsements: totals.perEndorsement,
+        seafarers: totals.perSeafarer,
         certificates: totals.appCert,
         savedAt: new Date().toISOString()
       }
     };
     
     setWeeklyHistory(newHistory);
-    alert(`✅ Semana ${weekNum} guardada no histórico!\n\nEndorsements: ${totals.perEndorsement}\nCertificados: ${totals.appCert}`);
+    alert(`✅ Semana ${weekNum} guardada no histórico!\n\nEndorsements: ${totals.perEndorsement}\nPer Seafarer: ${totals.perSeafarer}\nCertificados: ${totals.appCert}`);
   };
 
   // Helper function to convert Excel serial date to JS Date
@@ -674,8 +675,17 @@ export default function App() {
   const generatePDFReport = () => {
     const reportDate = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
     
-    const weeklyHistoryEntries = Object.entries(weeklyHistory).slice(-4);
-    const weeklyTotal = weeklyHistoryEntries.reduce((sum, [_, val]) => sum + (typeof val === 'object' ? val.endorsements : val), 0) + totals.perEndorsement;
+    // Get last 4 weeks from history (+ current week = 5 weeks total)
+    const weeklyHistoryEntries = Object.entries(weeklyHistory)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-4);
+    
+    // Calculate totals
+    const historyEndorsements = weeklyHistoryEntries.reduce((sum, [_, val]) => sum + (typeof val === 'object' ? val.endorsements : val), 0);
+    const historySeafarers = weeklyHistoryEntries.reduce((sum, [_, val]) => sum + (typeof val === 'object' ? (val.seafarers || 0) : 0), 0);
+    
+    const totalEndorsements = historyEndorsements + totals.perEndorsement;
+    const totalSeafarers = historySeafarers + totals.perSeafarer;
     
     // Process notes with variable replacement
     const processedNote1 = reportNotes.note1
@@ -723,7 +733,7 @@ export default function App() {
       return `<tr><td>${week.replace(/^\d{4}-W/, '')}</td><td>${seafarers}</td><td>${endorsements}</td></tr>`;
     }).join('')}
     <tr><td>${weeklyData?.weekNumber || '-'}</td><td>${totals.perSeafarer}</td><td>${totals.perEndorsement}</td></tr>
-    <tr class="total-row"><td>Total</td><td>-</td><td>${weeklyTotal}</td></tr>
+    <tr class="total-row"><td>Total</td><td>${totalSeafarers}</td><td>${totalEndorsements}</td></tr>
   </table>
   
   <div class="section-title">Notes</div>
