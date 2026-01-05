@@ -94,6 +94,7 @@ export default function App() {
   const [weeklyHistory, setWeeklyHistory] = useState({});
   const [newCorrectionNote, setNewCorrectionNote] = useState('');
   const [lastSaved, setLastSaved] = useState(null);
+  const [monthOverride, setMonthOverride] = useState(''); // Format: "2025-12" or empty for auto
   
   // Report editing states
   const [reportNotes, setReportNotes] = useState(() => 
@@ -323,11 +324,10 @@ export default function App() {
     const result = {};
     
     Object.entries(weeklyHistory).forEach(([weekKey, data]) => {
-      // weekKey format: "2025-W49" - extract year from key (more reliable than data.year)
-      const [keyYear, keyWeek] = weekKey.split('-W');
-      const year = parseInt(keyYear) || data.year || 2025;
-      const weekNum = parseInt(keyWeek) || data.weekNumber || 1;
-      const month = getMonthFromWeek(weekNum, year);
+      // Use monthYear if available (user-selected), otherwise use year from weekKey
+      const [keyYear] = weekKey.split('-W');
+      const year = data.monthYear || data.year || parseInt(keyYear) || 2025;
+      const month = data.month || 12;
       const monthKey = `${year}-${String(month).padStart(2, '0')}`;
       
       if (!result[monthKey]) {
@@ -359,7 +359,17 @@ export default function App() {
       year = currentYear;
     }
     
-    const month = getMonthFromWeek(weekNum, year);
+    // Use monthOverride if set, otherwise calculate from week
+    let month, monthYear;
+    if (monthOverride) {
+      const [overrideYear, overrideMonth] = monthOverride.split('-').map(Number);
+      monthYear = overrideYear;
+      month = overrideMonth;
+    } else {
+      monthYear = year;
+      month = getMonthFromWeek(weekNum, year);
+    }
+    
     const weekKey = `${year}-W${String(weekNum).padStart(2, '0')}`;
     
     // Check if already exists
@@ -369,12 +379,16 @@ export default function App() {
       }
     }
     
+    const monthNames = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    
     const newHistory = {
       ...weeklyHistory,
       [weekKey]: {
         weekNumber: weekNum,
         year: year,
         month: month,
+        monthYear: monthYear,
         endorsements: totals.perEndorsement,
         seafarers: totals.perSeafarer,
         certificates: totals.appCert,
@@ -383,7 +397,8 @@ export default function App() {
     };
     
     setWeeklyHistory(newHistory);
-    alert(`✅ Semana ${weekNum} de ${year} guardada!\n\nEndorsements: ${totals.perEndorsement}\nPer Seafarer: ${totals.perSeafarer}\nCertificados: ${totals.appCert}`);
+    setMonthOverride(''); // Reset after saving
+    alert(`✅ Semana ${weekNum} de ${year} guardada!\n\nMês: ${monthNames[month]} ${monthYear}\nEndorsements: ${totals.perEndorsement}\nPer Seafarer: ${totals.perSeafarer}\nCertificados: ${totals.appCert}`);
   };
 
   // Helper function to convert Excel serial date to JS Date
@@ -1101,6 +1116,20 @@ export default function App() {
                     onChange={(e) => setWeeklyData(prev => ({ ...prev, weekNumber: parseInt(e.target.value) || 0 }))} 
                     className="border-2 border-gray-300 rounded-lg px-4 py-2 w-24 text-center text-xl font-bold focus:border-red-500 focus:outline-none"
                   />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="font-semibold text-gray-700">Mês:</label>
+                  <select
+                    value={monthOverride}
+                    onChange={(e) => setMonthOverride(e.target.value)}
+                    className="border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-red-500 focus:outline-none"
+                  >
+                    <option value="">Auto</option>
+                    <option value="2025-12">Dezembro 2025</option>
+                    <option value="2026-01">Janeiro 2026</option>
+                    <option value="2026-02">Fevereiro 2026</option>
+                    <option value="2026-03">Março 2026</option>
+                  </select>
                 </div>
                 <div className="flex gap-2">
                   <button 
