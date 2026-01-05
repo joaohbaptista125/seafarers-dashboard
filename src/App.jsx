@@ -570,13 +570,15 @@ export default function App() {
     // Use UTC for today to match SRA dates
     const now = new Date();
     const todayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    console.log('Today UTC:', todayUTC.toISOString());
     
     const upcoming = data
       .filter(row => {
         const sraExpiryRaw = row['SRA Expiry date'] || row['SRA Expiry Date'] || '';
         if (!sraExpiryRaw && sraExpiryRaw !== 0) return false;
         const sraDate = excelDateToJS(sraExpiryRaw);
-        return sraDate && !isNaN(sraDate.getTime()) && sraDate > todayUTC;
+        const isUpcoming = sraDate && !isNaN(sraDate.getTime()) && sraDate > todayUTC;
+        return isUpcoming;
       })
       .sort((a, b) => {
         const dateA = excelDateToJS(a['SRA Expiry date'] || a['SRA Expiry Date']);
@@ -584,11 +586,16 @@ export default function App() {
         return dateA - dateB;
       });
     
+    console.log('Upcoming SRAs count:', upcoming.length);
     if (upcoming.length > 0) {
       const next = upcoming[0];
       const sraDateRaw = next['SRA Expiry date'] || next['SRA Expiry Date'];
       const sraDate = excelDateToJS(sraDateRaw);
       const formattedDate = formatDate(sraDate);
+      
+      console.log('Next SRA raw value:', sraDateRaw);
+      console.log('Next SRA parsed:', sraDate?.toISOString());
+      console.log('Next SRA formatted:', formattedDate);
       
       setNextSRA({ 
         date: formattedDate, 
@@ -596,7 +603,6 @@ export default function App() {
         name: next['Name'] || next['name'] || '-', 
         company: next['Invoice Address'] || next['Invoice address'] || '-' 
       });
-      console.log('Next SRA:', formattedDate, sraDateRaw, next['Ship'], next['Name']);
     }
   };
 
@@ -708,14 +714,15 @@ export default function App() {
 <body>
   <h1>Seafarers Status ${reportDate}</h1>
   
-  <div class="section-title">Week ${weeklyData.weekNumber} - Endorsements Received</div>
+  <div class="section-title">Endorsements Received</div>
   <table>
-    <tr><th>End Received</th><th>Per Seafarer</th><th>Per Endorsement Issued</th></tr>
+    <tr><th>Week</th><th>Per Seafarer</th><th>Per Endorsement Issued</th></tr>
     ${weeklyHistoryEntries.map(([week, val]) => {
       const endorsements = typeof val === 'object' ? val.endorsements : val;
-      return `<tr><td>Week ${week.replace(/^\d{4}-W/, '')}</td><td>-</td><td>${endorsements}</td></tr>`;
+      const seafarers = typeof val === 'object' ? (val.seafarers || '-') : '-';
+      return `<tr><td>${week.replace(/^\d{4}-W/, '')}</td><td>${seafarers}</td><td>${endorsements}</td></tr>`;
     }).join('')}
-    <tr><td>Week ${weeklyData.weekNumber}</td><td>${totals.perSeafarer}</td><td>${totals.perEndorsement}</td></tr>
+    <tr><td>${weeklyData?.weekNumber || '-'}</td><td>${totals.perSeafarer}</td><td>${totals.perEndorsement}</td></tr>
     <tr class="total-row"><td>Total</td><td>-</td><td>${weeklyTotal}</td></tr>
   </table>
   
@@ -745,6 +752,7 @@ export default function App() {
   </table>
   ` : ''}
   
+  ${Object.keys(monthlyData).length > 0 ? `
   <div class="section-title">Monthly Overview</div>
   <table class="green-header">
     <tr><th>Month</th><th>Endorsements Received</th><th>Applications (Certificates)</th></tr>
@@ -755,6 +763,7 @@ export default function App() {
       return `<tr><td>${date.toLocaleString('en', { month: 'long', year: 'numeric' })}</td><td>${endorsements}</td><td>${certificates}</td></tr>`;
     }).join('')}
   </table>
+  ` : ''}
 </body>
 </html>`;
 
@@ -1488,4 +1497,3 @@ export default function App() {
     </div>
   );
 }
-// force rebuild
