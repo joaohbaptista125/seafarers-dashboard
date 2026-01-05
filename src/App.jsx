@@ -889,14 +889,23 @@ export default function App() {
   ${Object.keys(monthlyData).length > 0 ? `
   <div class="section-title">Monthly Overview</div>
   <table class="green-header">
-    <tr><th>Month</th><th>Endorsements Received</th><th>Applications (Certificates)</th></tr>
+    <tr><th>Month</th><th>Endorsements</th><th>Certificates</th><th>Processing Rate</th><th>Net Flow</th></tr>
     ${Object.entries(monthlyData).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => {
       const date = new Date(month + '-01');
       const endorsements = typeof data === 'object' ? data.endorsements : data;
       const certificates = typeof data === 'object' ? data.certificates : 0;
-      return `<tr><td>${date.toLocaleString('en', { month: 'long', year: 'numeric' })}</td><td>${endorsements}</td><td>${certificates}</td></tr>`;
+      const processingRate = endorsements > 0 ? Math.round((certificates / endorsements) * 100) : 0;
+      const netFlow = endorsements - certificates;
+      const netFlowClass = netFlow <= 0 ? 'color: green;' : 'color: red;';
+      const netFlowSign = netFlow > 0 ? '+' : '';
+      return `<tr><td>${date.toLocaleString('en', { month: 'long', year: 'numeric' })}</td><td>${endorsements}</td><td>${certificates}</td><td>${processingRate}%</td><td style="${netFlowClass}">${netFlowSign}${netFlow}</td></tr>`;
     }).join('')}
   </table>
+  <div style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px; font-size: 12px;">
+    <p style="margin: 3px 0;"><strong>📊 Legenda:</strong></p>
+    <p style="margin: 3px 0;">• <strong>Processing Rate</strong> = Certificates ÷ Endorsements × 100 (acima de 100% = a reduzir backlog)</p>
+    <p style="margin: 3px 0;">• <strong>Net Flow</strong> = Endorsements − Certificates (<span style="color: green;">negativo = bom</span>, <span style="color: red;">positivo = backlog a aumentar</span>)</p>
+  </div>
   ` : ''}
 </body>
 </html>`;
@@ -1461,29 +1470,118 @@ export default function App() {
                 {Object.keys(monthlyData).length === 0 ? (
                   <p className="text-gray-400 text-center py-8">Nenhum dado mensal ainda. Guarda semanas para ver o resumo mensal.</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-green-50">
-                          <th className="p-3 text-left font-semibold text-gray-700">Mês</th>
-                          <th className="p-3 text-center font-semibold text-gray-700">Endorsements</th>
-                          <th className="p-3 text-center font-semibold text-gray-700">Certificados (Apps)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(monthlyData).sort(([a], [b]) => b.localeCompare(a)).map(([month, data]) => {
-                          const date = new Date(month + '-01');
-                          return (
-                            <tr key={month} className="border-b hover:bg-gray-50">
-                              <td className="p-3 font-medium">{date.toLocaleString('pt-PT', { month: 'long', year: 'numeric' })}</td>
-                              <td className="p-3 text-center text-green-700 font-bold">{data.endorsements}</td>
-                              <td className="p-3 text-center text-blue-700 font-bold">{data.certificates}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-green-50">
+                            <th className="p-3 text-left font-semibold text-gray-700">Mês</th>
+                            <th className="p-3 text-center font-semibold text-gray-700">Endorsements</th>
+                            <th className="p-3 text-center font-semibold text-gray-700">Certificates</th>
+                            <th className="p-3 text-center font-semibold text-gray-700">Processing Rate</th>
+                            <th className="p-3 text-center font-semibold text-gray-700">Net Flow</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(monthlyData).sort(([a], [b]) => b.localeCompare(a)).map(([month, data]) => {
+                            const date = new Date(month + '-01');
+                            const processingRate = data.endorsements > 0 ? Math.round((data.certificates / data.endorsements) * 100) : 0;
+                            const netFlow = data.endorsements - data.certificates;
+                            return (
+                              <tr key={month} className="border-b hover:bg-gray-50">
+                                <td className="p-3 font-medium">{date.toLocaleString('pt-PT', { month: 'long', year: 'numeric' })}</td>
+                                <td className="p-3 text-center text-green-700 font-bold">{data.endorsements}</td>
+                                <td className="p-3 text-center text-blue-700 font-bold">{data.certificates}</td>
+                                <td className="p-3 text-center font-bold">
+                                  <span className={processingRate >= 100 ? 'text-green-600' : 'text-orange-600'}>{processingRate}%</span>
+                                </td>
+                                <td className="p-3 text-center font-bold">
+                                  <span className={netFlow <= 0 ? 'text-green-600' : 'text-red-600'}>
+                                    {netFlow > 0 ? '+' : ''}{netFlow}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Legend */}
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg text-sm">
+                      <p className="font-semibold text-gray-700 mb-2">📊 Legenda:</p>
+                      <div className="grid md:grid-cols-2 gap-2 text-gray-600">
+                        <p>• <strong>Processing Rate</strong> = Certificates ÷ Endorsements × 100</p>
+                        <p className="text-green-600">↑ Acima de 100% = A reduzir backlog</p>
+                        <p>• <strong>Net Flow</strong> = Endorsements − Certificates</p>
+                        <p><span className="text-green-600">Negativo = Bom</span> | <span className="text-red-600">Positivo = Backlog ↑</span></p>
+                      </div>
+                    </div>
+
+                    {/* Backlog Chart */}
+                    <div className="mt-6">
+                      <h3 className="font-semibold text-gray-700 mb-3">📈 Evolução do Backlog</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <LineChart
+                          data={(() => {
+                            let accumulated = 0;
+                            return Object.entries(monthlyData)
+                              .sort(([a], [b]) => a.localeCompare(b))
+                              .map(([month, data]) => {
+                                const netFlow = data.endorsements - data.certificates;
+                                accumulated += netFlow;
+                                const date = new Date(month + '-01');
+                                return {
+                                  month: date.toLocaleString('pt-PT', { month: 'short', year: '2-digit' }),
+                                  endorsements: data.endorsements,
+                                  certificates: data.certificates,
+                                  backlog: accumulated
+                                };
+                              });
+                          })()}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                          <XAxis dataKey="month" stroke="#666" fontSize={12} />
+                          <YAxis stroke="#666" fontSize={12} />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '8px' }}
+                            labelStyle={{ fontWeight: 'bold' }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="endorsements" 
+                            stroke="#16a34a" 
+                            strokeWidth={2}
+                            dot={{ fill: '#16a34a', r: 4 }}
+                            name="Endorsements (entrada)"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="certificates" 
+                            stroke="#2563eb" 
+                            strokeWidth={2}
+                            dot={{ fill: '#2563eb', r: 4 }}
+                            name="Certificates (saída)"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="backlog" 
+                            stroke="#dc2626" 
+                            strokeWidth={3}
+                            strokeDasharray="5 5"
+                            dot={{ fill: '#dc2626', r: 5 }}
+                            name="Backlog acumulado"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                      <div className="mt-2 flex flex-wrap justify-center gap-4 text-xs">
+                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-green-600 inline-block"></span> Endorsements (entrada)</span>
+                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-blue-600 inline-block"></span> Certificates (saída)</span>
+                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-red-600 inline-block border-dashed"></span> Backlog acumulado (tracejado)</span>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
               
