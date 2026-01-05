@@ -675,17 +675,31 @@ export default function App() {
   const generatePDFReport = () => {
     const reportDate = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
     
-    // Get last 4 weeks from history (+ current week = 5 weeks total)
-    const weeklyHistoryEntries = Object.entries(weeklyHistory)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-4);
+    // Sort all weeks chronologically
+    const allWeeks = Object.entries(weeklyHistory).sort(([a], [b]) => a.localeCompare(b));
+    
+    // Check if current week is already in history
+    const currentWeekKey = `${new Date().getFullYear()}-W${String(weeklyData?.weekNumber || 0).padStart(2, '0')}`;
+    const currentWeekInHistory = weeklyHistory[currentWeekKey];
+    
+    let weeklyHistoryEntries;
+    let showCurrentWeek = false;
+    
+    if (currentWeekInHistory) {
+      // Current week is saved - show last 5 from history only
+      weeklyHistoryEntries = allWeeks.slice(-5);
+    } else {
+      // Current week not saved - show last 4 from history + current week
+      weeklyHistoryEntries = allWeeks.slice(-4);
+      showCurrentWeek = true;
+    }
     
     // Calculate totals
     const historyEndorsements = weeklyHistoryEntries.reduce((sum, [_, val]) => sum + (typeof val === 'object' ? val.endorsements : val), 0);
     const historySeafarers = weeklyHistoryEntries.reduce((sum, [_, val]) => sum + (typeof val === 'object' ? (val.seafarers || 0) : 0), 0);
     
-    const totalEndorsements = historyEndorsements + totals.perEndorsement;
-    const totalSeafarers = historySeafarers + totals.perSeafarer;
+    const totalEndorsements = historyEndorsements + (showCurrentWeek ? totals.perEndorsement : 0);
+    const totalSeafarers = historySeafarers + (showCurrentWeek ? totals.perSeafarer : 0);
     
     // Process notes with variable replacement
     const processedNote1 = reportNotes.note1
@@ -732,7 +746,7 @@ export default function App() {
       const seafarers = typeof val === 'object' ? (val.seafarers || '-') : '-';
       return `<tr><td>${week.replace(/^\d{4}-W/, '')}</td><td>${seafarers}</td><td>${endorsements}</td></tr>`;
     }).join('')}
-    <tr><td>${weeklyData?.weekNumber || '-'}</td><td>${totals.perSeafarer}</td><td>${totals.perEndorsement}</td></tr>
+    ${showCurrentWeek ? `<tr><td>${weeklyData?.weekNumber || '-'}</td><td>${totals.perSeafarer}</td><td>${totals.perEndorsement}</td></tr>` : ''}
     <tr class="total-row"><td>Total</td><td>${totalSeafarers}</td><td>${totalEndorsements}</td></tr>
   </table>
   
