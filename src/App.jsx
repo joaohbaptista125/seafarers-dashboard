@@ -896,15 +896,15 @@ export default function App() {
       const certificates = typeof data === 'object' ? data.certificates : 0;
       const processingRate = endorsements > 0 ? Math.round((certificates / endorsements) * 100) : 0;
       const netFlow = endorsements - certificates;
-      const netFlowClass = netFlow <= 0 ? 'color: green;' : 'color: red;';
+      const netFlowClass = netFlow >= 0 ? 'color: green;' : 'color: red;';
       const netFlowSign = netFlow > 0 ? '+' : '';
       return `<tr><td>${date.toLocaleString('en', { month: 'long', year: 'numeric' })}</td><td>${endorsements}</td><td>${certificates}</td><td>${processingRate}%</td><td style="${netFlowClass}">${netFlowSign}${netFlow}</td></tr>`;
     }).join('')}
   </table>
   <div style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px; font-size: 12px;">
     <p style="margin: 3px 0;"><strong>📊 Legend:</strong></p>
-    <p style="margin: 3px 0;">• <strong>Processing Rate</strong> = Certificates ÷ Endorsements × 100 (above 100% = reducing backlog)</p>
-    <p style="margin: 3px 0;">• <strong>Net Flow</strong> = Endorsements − Certificates (<span style="color: green;">negative = good</span>, <span style="color: red;">positive = backlog increasing</span>)</p>
+    <p style="margin: 3px 0;">• <strong>Processing Rate</strong> = Certificates ÷ Endorsements × 100 (below 100% = reducing backlog)</p>
+    <p style="margin: 3px 0;">• <strong>Net Flow</strong> = Endorsements − Certificates (<span style="color: green;">positive = good</span>, <span style="color: red;">negative = backlog increasing</span>)</p>
   </div>
   ` : ''}
 </body>
@@ -1205,10 +1205,10 @@ export default function App() {
                                 <td className="p-3 text-center text-green-700 font-bold">{data.endorsements}</td>
                                 <td className="p-3 text-center text-blue-700 font-bold">{data.certificates}</td>
                                 <td className="p-3 text-center font-bold">
-                                  <span className={processingRate >= 100 ? 'text-green-600' : 'text-orange-600'}>{processingRate}%</span>
+                                  <span className={processingRate <= 100 ? 'text-green-600' : 'text-orange-600'}>{processingRate}%</span>
                                 </td>
                                 <td className="p-3 text-center font-bold">
-                                  <span className={netFlow <= 0 ? 'text-green-600' : 'text-red-600'}>
+                                  <span className={netFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
                                     {netFlow > 0 ? '+' : ''}{netFlow}
                                   </span>
                                 </td>
@@ -1224,9 +1224,9 @@ export default function App() {
                       <p className="font-semibold text-gray-700 mb-2">📊 Legend:</p>
                       <div className="grid md:grid-cols-2 gap-2 text-gray-600">
                         <p>• <strong>Processing Rate</strong> = Certificates ÷ Endorsements × 100</p>
-                        <p className="text-green-600">↑ Above 100% = Reducing backlog</p>
+                        <p className="text-green-600">↓ Below 100% = Reducing backlog</p>
                         <p>• <strong>Net Flow</strong> = Endorsements − Certificates</p>
-                        <p><span className="text-green-600">Negative = Good</span> | <span className="text-red-600">Positive = Backlog ↑</span></p>
+                        <p><span className="text-green-600">Positive = Good</span> | <span className="text-red-600">Negative = Backlog ↑</span></p>
                       </div>
                     </div>
 
@@ -1240,7 +1240,7 @@ export default function App() {
                             return Object.entries(monthlyData)
                               .sort(([a], [b]) => a.localeCompare(b))
                               .map(([month, data]) => {
-                                const netFlow = data.endorsements - data.certificates;
+                                const netFlow = data.certificates - data.endorsements;
                                 accumulated += netFlow;
                                 const date = new Date(month + '-01');
                                 return {
@@ -1262,19 +1262,19 @@ export default function App() {
                           />
                           <Line 
                             type="monotone" 
-                            dataKey="endorsements" 
-                            stroke="#16a34a" 
-                            strokeWidth={2}
-                            dot={{ fill: '#16a34a', r: 4 }}
-                            name="Endorsements (in)"
-                          />
-                          <Line 
-                            type="monotone" 
                             dataKey="certificates" 
                             stroke="#2563eb" 
                             strokeWidth={2}
                             dot={{ fill: '#2563eb', r: 4 }}
-                            name="Certificates (out)"
+                            name="Certificates Submitted (in)"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="endorsements" 
+                            stroke="#16a34a" 
+                            strokeWidth={2}
+                            dot={{ fill: '#16a34a', r: 4 }}
+                            name="Endorsements (out)"
                           />
                           <Line 
                             type="monotone" 
@@ -1288,8 +1288,8 @@ export default function App() {
                         </LineChart>
                       </ResponsiveContainer>
                       <div className="mt-2 flex flex-wrap justify-center gap-4 text-xs">
-                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-green-600 inline-block"></span> Endorsements (in)</span>
-                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-blue-600 inline-block"></span> Certificates (out)</span>
+                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-blue-600 inline-block"></span> Certificates Submitted (in)</span>
+                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-green-600 inline-block"></span> Endorsements (out)</span>
                         <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-red-600 inline-block border-dashed"></span> Accumulated backlog (dashed)</span>
                       </div>
                     </div>
