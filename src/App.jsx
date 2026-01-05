@@ -832,8 +832,8 @@ export default function App() {
   <title>Seafarers Status ${reportDate}</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
-    h1 { color: #C00000; text-align: center; border-bottom: 2px solid #C00000; padding-bottom: 10px; }
-    .section-title { background: #C00000; color: white; padding: 8px 15px; margin: 20px 0 10px 0; font-weight: bold; }
+    h1 { color: #1e3a5f; text-align: center; border-bottom: 2px solid #1e3a5f; padding-bottom: 10px; }
+    .section-title { background: #1e3a5f; color: white; padding: 8px 15px; margin: 20px 0 10px 0; font-weight: bold; }
     table { border-collapse: collapse; margin: 10px 0; width: 100%; }
     th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: center; }
     th { background: #404040; color: white; }
@@ -841,7 +841,7 @@ export default function App() {
     .notes { margin: 10px 0; padding-left: 20px; }
     .sra-alert { margin: 10px 0; }
     .sra-alert p { margin: 5px 0; }
-    .sra-alert span { display: inline-block; width: 120px; font-weight: bold; color: #C00000; }
+    .sra-alert span { display: inline-block; width: 120px; font-weight: bold; color: #1e3a5f; }
     .green-header th { background: #70AD47; }
     @media print { body { margin: 20px; } }
   </style>
@@ -926,19 +926,22 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <div className="bg-gradient-to-r from-red-800 to-red-600 text-white p-4 shadow-lg">
+      <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-4 shadow-lg">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">🚢 Seafarers Status Dashboard</h1>
-            <p className="text-red-200 text-sm">Portugal Flag - Endorsements 🇵🇹</p>
+          <div className="flex items-center gap-4">
+            <img src="/euromar-logo.png" alt="Euromar" className="h-12 bg-white rounded-lg p-1" />
+            <div>
+              <h1 className="text-2xl font-bold">Seafarers Status Dashboard</h1>
+              <p className="text-blue-200 text-sm">Portugal Flag - Endorsements 🇵🇹</p>
+            </div>
           </div>
           <div className="text-right">
-            <p className="text-red-200 text-xs flex items-center gap-2 justify-end">
+            <p className="text-blue-200 text-xs flex items-center gap-2 justify-end">
               {syncStatus === 'loading' && (
-                <><span className="animate-pulse">⏳</span> A carregar...</>
+                <><span className="animate-pulse">⏳</span> Loading...</>
               )}
               {syncStatus === 'saving' && (
-                <><span className="animate-pulse">💾</span> A guardar...</>
+                <><span className="animate-pulse">💾</span> Saving...</>
               )}
               {syncStatus === 'synced' && (
                 <><span className="text-green-300">☁️</span> Synced {lastSaved && `• ${lastSaved.toLocaleTimeString('en-GB')}`}</>
@@ -956,19 +959,19 @@ export default function App() {
         <div className="max-w-6xl mx-auto flex">
           <button 
             onClick={() => setActiveTab('dashboard')} 
-            className={`px-6 py-4 font-medium transition-colors ${activeTab === 'dashboard' ? 'text-red-700 border-b-2 border-red-700 bg-red-50' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-6 py-4 font-medium transition-colors ${activeTab === 'dashboard' ? 'text-blue-700 border-b-2 border-blue-700 bg-blue-50' : 'text-gray-500 hover:text-gray-700'}`}
           >
             📊 Dashboard
           </button>
           <button 
             onClick={() => setActiveTab('crewboard')} 
-            className={`px-6 py-4 font-medium transition-colors ${activeTab === 'crewboard' ? 'text-red-700 border-b-2 border-red-700 bg-red-50' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-6 py-4 font-medium transition-colors ${activeTab === 'crewboard' ? 'text-blue-700 border-b-2 border-blue-700 bg-blue-50' : 'text-gray-500 hover:text-gray-700'}`}
           >
             📋 Crewboard
           </button>
           <button 
             onClick={() => setActiveTab('report')} 
-            className={`px-6 py-4 font-medium transition-colors ${activeTab === 'report' ? 'text-red-700 border-b-2 border-red-700 bg-red-50' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-6 py-4 font-medium transition-colors ${activeTab === 'report' ? 'text-blue-700 border-b-2 border-blue-700 bg-blue-50' : 'text-gray-500 hover:text-gray-700'}`}
           >
             📄 Report
           </button>
@@ -1000,14 +1003,14 @@ export default function App() {
 
             {/* Next SRA Alert */}
             {nextSRA && (
-              <div className="bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-600 rounded-xl shadow-md p-6">
-                <h3 className="font-bold text-red-800 flex items-center gap-2 mb-4 text-lg">
+              <div className="bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-blue-600 rounded-xl shadow-md p-6">
+                <h3 className="font-bold text-blue-800 flex items-center gap-2 mb-4 text-lg">
                   ⚠️ Next SRA Expiring
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white rounded-lg p-3">
                     <p className="text-gray-500 text-xs uppercase">Date</p>
-                    <p className="font-semibold text-red-700">{nextSRA.date}</p>
+                    <p className="font-semibold text-blue-700">{nextSRA.date}</p>
                   </div>
                   <div className="bg-white rounded-lg p-3">
                     <p className="text-gray-500 text-xs uppercase">Ship</p>
@@ -1259,7 +1262,7 @@ export default function App() {
             {/* Generate Report Button */}
             <button 
               onClick={generatePDFReport} 
-              className="w-full bg-gradient-to-r from-red-700 to-red-600 hover:from-red-800 hover:to-red-700 text-white px-8 py-4 rounded-xl font-semibold shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 text-lg"
+              className="w-full bg-gradient-to-r from-blue-800 to-blue-700 hover:from-blue-900 hover:to-blue-800 text-white px-8 py-4 rounded-xl font-semibold shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 text-lg"
             >
               📄 Generate Weekly Report
             </button>
@@ -1277,7 +1280,7 @@ export default function App() {
                     type="number" 
                     value={weeklyData.weekNumber} 
                     onChange={(e) => setWeeklyData(prev => ({ ...prev, weekNumber: parseInt(e.target.value) || 0 }))} 
-                    className="border-2 border-gray-300 rounded-lg px-4 py-2 w-24 text-center text-xl font-bold focus:border-red-500 focus:outline-none"
+                    className="border-2 border-gray-300 rounded-lg px-4 py-2 w-24 text-center text-xl font-bold focus:border-blue-500 focus:outline-none"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -1285,7 +1288,7 @@ export default function App() {
                   <select
                     value={monthOverride}
                     onChange={(e) => setMonthOverride(e.target.value)}
-                    className="border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-red-500 focus:outline-none"
+                    className="border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none"
                   >
                     <option value="">Auto</option>
                     <option value="2025-12">December 2025</option>
@@ -1385,7 +1388,7 @@ export default function App() {
                             value={weeklyData.days[day].endorsementsReceived} 
                             onChange={(e) => updateDayData(day, 'endorsementsReceived', e.target.value)} 
                             placeholder="XX / YY"
-                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-red-500 focus:outline-none"
+                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-blue-500 focus:outline-none"
                           />
                         </td>
                       ))}
@@ -1399,7 +1402,7 @@ export default function App() {
                             value={weeklyData.days[day].applicationsReceived} 
                             onChange={(e) => updateDayData(day, 'applicationsReceived', e.target.value)} 
                             placeholder="XX / YY"
-                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-red-500 focus:outline-none"
+                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-blue-500 focus:outline-none"
                           />
                         </td>
                       ))}
@@ -1413,7 +1416,7 @@ export default function App() {
                             value={weeklyData.days[day].sendingSRA} 
                             onChange={(e) => updateDayData(day, 'sendingSRA', e.target.value)}
                             placeholder="Name"
-                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-red-500 focus:outline-none"
+                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-blue-500 focus:outline-none"
                           />
                         </td>
                       ))}
@@ -1427,7 +1430,7 @@ export default function App() {
                             value={weeklyData.days[day].sendingEndorsements} 
                             onChange={(e) => updateDayData(day, 'sendingEndorsements', e.target.value)}
                             placeholder="Name"
-                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-red-500 focus:outline-none"
+                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-blue-500 focus:outline-none"
                           />
                         </td>
                       ))}
@@ -1440,7 +1443,7 @@ export default function App() {
                             type="number" 
                             value={weeklyData.days[day].corrections} 
                             onChange={(e) => updateDayData(day, 'corrections', parseInt(e.target.value) || 0)}
-                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-red-500 focus:outline-none"
+                            className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-center focus:border-blue-500 focus:outline-none"
                           />
                         </td>
                       ))}
@@ -1555,7 +1558,7 @@ export default function App() {
                     <div key={weekKey} className="bg-gray-50 rounded-lg p-3 text-center text-sm relative group">
                       <button
                         onClick={() => deleteWeekFromHistory(weekKey)}
-                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute -top-2 -right-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-6 h-6 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Delete"
                       >
                         ✕
@@ -1586,8 +1589,8 @@ export default function App() {
                 <label 
                   className={`block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
                     isDraggingCSV 
-                      ? 'border-red-500 bg-red-100 scale-105' 
-                      : 'border-gray-300 hover:border-red-400 hover:bg-red-50'
+                      ? 'border-blue-500 bg-blue-100 scale-105' 
+                      : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
                   }`}
                   onDragOver={(e) => handleDragOver(e, 'csv')}
                   onDragLeave={(e) => handleDragLeave(e, 'csv')}
@@ -1623,7 +1626,7 @@ export default function App() {
 
             {/* Notes Section */}
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="bg-red-700 text-white px-6 py-4">
+              <div className="bg-blue-800 text-white px-6 py-4">
                 <h3 className="font-bold">📝 Report Notes</h3>
               </div>
               <div className="p-6 space-y-4">
@@ -1637,7 +1640,7 @@ export default function App() {
                       setReportNotes(newNotes);
                       localStorage.setItem('seafarers_reportNotes', JSON.stringify(newNotes));
                     }}
-                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-red-500 focus:outline-none"
+                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none"
                     placeholder="This week we received a total of {endorsements} endorsements."
                   />
                   <p className="text-xs text-gray-400 mt-1">Use {'{endorsements}'} to insert the number automatically</p>
@@ -1652,7 +1655,7 @@ export default function App() {
                       setReportNotes(newNotes);
                       localStorage.setItem('seafarers_reportNotes', JSON.stringify(newNotes));
                     }}
-                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-red-500 focus:outline-none"
+                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none"
                     placeholder="This week we received {applications} applications..."
                   />
                   <p className="text-xs text-gray-400 mt-1">Use {'{applications}'} and {'{certificates}'} to insert numbers automatically</p>
@@ -1666,7 +1669,7 @@ export default function App() {
                       setReportNotes(newNotes);
                       localStorage.setItem('seafarers_reportNotes', JSON.stringify(newNotes));
                     }}
-                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-red-500 focus:outline-none h-24"
+                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none h-24"
                     placeholder="Add extra notes here... (each line will be a bullet point)"
                   />
                 </div>
@@ -1747,7 +1750,7 @@ export default function App() {
             {/* Generate Button */}
             <button 
               onClick={generatePDFReport} 
-              className="w-full bg-gradient-to-r from-red-700 to-red-600 hover:from-red-800 hover:to-red-700 text-white px-8 py-4 rounded-xl font-semibold shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 text-lg"
+              className="w-full bg-gradient-to-r from-blue-800 to-blue-700 hover:from-blue-900 hover:to-blue-800 text-white px-8 py-4 rounded-xl font-semibold shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 text-lg"
             >
               📄 Generate Weekly Report
             </button>
