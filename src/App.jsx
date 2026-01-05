@@ -350,10 +350,8 @@ export default function App() {
     // Determine the correct year for this week
     let year;
     if (weekNum >= 49 && currentMonth <= 1) {
-      // Weeks 49-53 in January/February belong to previous year
       year = currentYear - 1;
     } else if (weekNum <= 2 && currentMonth >= 10) {
-      // Weeks 1-2 in November/December belong to next year
       year = currentYear + 1;
     } else {
       year = currentYear;
@@ -370,11 +368,43 @@ export default function App() {
       month = getMonthFromWeek(weekNum, year);
     }
     
-    const weekKey = `${year}-W${String(weekNum).padStart(2, '0')}`;
+    // Ask for custom values if needed
+    const useCustomValues = confirm(
+      `Guardar Week ${weekNum} para ${month}/${monthYear}\n\n` +
+      `Valores atuais:\n` +
+      `• Endorsements: ${totals.perEndorsement}\n` +
+      `• Per Seafarer: ${totals.perSeafarer}\n` +
+      `• Certificados: ${totals.appCert}\n\n` +
+      `OK = Usar valores atuais\n` +
+      `Cancelar = Inserir valores manualmente`
+    );
+    
+    let endorsements = totals.perEndorsement;
+    let seafarers = totals.perSeafarer;
+    let certificates = totals.appCert;
+    
+    if (!useCustomValues) {
+      const customEnd = prompt(`Endorsements para ${month}/${monthYear}:`, totals.perEndorsement.toString());
+      if (customEnd === null) return;
+      endorsements = parseInt(customEnd) || 0;
+      
+      const customSea = prompt(`Per Seafarer para ${month}/${monthYear}:`, totals.perSeafarer.toString());
+      if (customSea === null) return;
+      seafarers = parseInt(customSea) || 0;
+      
+      const customCert = prompt(`Certificados para ${month}/${monthYear}:`, totals.appCert.toString());
+      if (customCert === null) return;
+      certificates = parseInt(customCert) || 0;
+    }
+    
+    // Use month-specific key when using monthOverride (allows same week for different months)
+    const weekKey = monthOverride 
+      ? `${year}-W${String(weekNum).padStart(2, '0')}-${monthYear}-${String(month).padStart(2, '0')}`
+      : `${year}-W${String(weekNum).padStart(2, '0')}`;
     
     // Check if already exists
     if (weeklyHistory[weekKey]) {
-      if (!confirm(`Semana ${weekNum} de ${year} já existe. Queres substituir?`)) {
+      if (!confirm(`Esta entrada já existe. Queres substituir?`)) {
         return;
       }
     }
@@ -389,16 +419,16 @@ export default function App() {
         year: year,
         month: month,
         monthYear: monthYear,
-        endorsements: totals.perEndorsement,
-        seafarers: totals.perSeafarer,
-        certificates: totals.appCert,
+        endorsements: endorsements,
+        seafarers: seafarers,
+        certificates: certificates,
         savedAt: new Date().toISOString()
       }
     };
     
     setWeeklyHistory(newHistory);
-    setMonthOverride(''); // Reset after saving
-    alert(`✅ Semana ${weekNum} de ${year} guardada!\n\nMês: ${monthNames[month]} ${monthYear}\nEndorsements: ${totals.perEndorsement}\nPer Seafarer: ${totals.perSeafarer}\nCertificados: ${totals.appCert}`);
+    setMonthOverride('');
+    alert(`✅ Semana ${weekNum} guardada!\n\nMês: ${monthNames[month]} ${monthYear}\nEndorsements: ${endorsements}\nPer Seafarer: ${seafarers}\nCertificados: ${certificates}`);
   };
 
   // Helper function to convert Excel serial date to JS Date
@@ -730,9 +760,9 @@ export default function App() {
       weekYear = currentYear;
     }
     
-    // Check if current week is already in history
+    // Check if current week is already in history (check both formats)
     const currentWeekKey = `${weekYear}-W${String(weekNum).padStart(2, '0')}`;
-    const currentWeekInHistory = weeklyHistory[currentWeekKey];
+    const currentWeekInHistory = Object.keys(weeklyHistory).some(key => key.startsWith(currentWeekKey));
     
     let weeklyHistoryEntries;
     let showCurrentWeek = false;
@@ -796,7 +826,9 @@ export default function App() {
     ${weeklyHistoryEntries.map(([week, val]) => {
       const endorsements = typeof val === 'object' ? val.endorsements : val;
       const seafarers = typeof val === 'object' ? (val.seafarers || '-') : '-';
-      return `<tr><td>${week.replace(/^\d{4}-W/, '')}</td><td>${seafarers}</td><td>${endorsements}</td></tr>`;
+      // Extract week number - handles both "2025-W53" and "2025-W53-2026-01" formats
+      const weekNum = week.match(/W(\d+)/)?.[1] || week;
+      return `<tr><td>${weekNum}</td><td>${seafarers}</td><td>${endorsements}</td></tr>`;
     }).join('')}
     ${showCurrentWeek ? `<tr><td>${weeklyData?.weekNumber || '-'}</td><td>${totals.perSeafarer}</td><td>${totals.perEndorsement}</td></tr>` : ''}
     <tr class="total-row"><td>Total</td><td>${totalSeafarers}</td><td>${totalEndorsements}</td></tr>
@@ -1049,7 +1081,7 @@ export default function App() {
                         ...Object.entries(weeklyHistory)
                           .sort(([a], [b]) => a.localeCompare(b))
                           .map(([weekKey, data]) => ({
-                            week: weekKey.replace(/^\d{4}-W/, 'S'),
+                            week: 'S' + (weekKey.match(/W(\d+)/)?.[1] || weekKey),
                             endorsements: typeof data === 'object' ? data.endorsements : data,
                             certificates: typeof data === 'object' ? data.certificates : 0
                           })),
