@@ -342,7 +342,18 @@ export default function App() {
   const saveWeekToHistory = () => {
     const weekNum = weeklyData.weekNumber;
     const now = new Date();
-    const year = now.getFullYear();
+    let year = now.getFullYear();
+    
+    // Adjust year for weeks at year boundaries
+    // If we're in January but week number is >= 50, it's from the previous year
+    if (now.getMonth() === 0 && weekNum >= 50) {
+      year = year - 1;
+    }
+    // If we're in December but week number is <= 2, it's from the next year
+    if (now.getMonth() === 11 && weekNum <= 2) {
+      year = year + 1;
+    }
+    
     const month = getMonthFromWeek(weekNum, year);
     const weekKey = `${year}-W${String(weekNum).padStart(2, '0')}`;
     
@@ -360,7 +371,7 @@ export default function App() {
     };
     
     setWeeklyHistory(newHistory);
-    alert(`✅ Semana ${weekNum} guardada no histórico!\n\nEndorsements: ${totals.perEndorsement}\nPer Seafarer: ${totals.perSeafarer}\nCertificados: ${totals.appCert}`);
+    alert(`✅ Semana ${weekNum} de ${year} guardada!\n\nEndorsements: ${totals.perEndorsement}\nPer Seafarer: ${totals.perSeafarer}\nCertificados: ${totals.appCert}`);
   };
 
   // Helper function to convert Excel serial date to JS Date
