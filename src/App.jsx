@@ -247,7 +247,7 @@ export default function App() {
 
   // Function to reset all data for new week
   const resetForNewWeek = async () => {
-    if (window.confirm('⚠️ Tens a certeza que queres limpar todos os dados e começar uma nova semana?')) {
+    if (window.confirm('⚠️ Are you sure you want to clear all data and start a new week?')) {
       const newData = { ...INITIAL_WEEKLY_DATA, weekNumber: getCurrentWeek() };
       setWeeklyData(newData);
       setOutstandingEnd(null);
@@ -370,13 +370,13 @@ export default function App() {
     
     // Ask for custom values if needed
     const useCustomValues = confirm(
-      `Guardar Week ${weekNum} para ${month}/${monthYear}\n\n` +
-      `Valores atuais:\n` +
+      `Save Week ${weekNum} to ${month}/${monthYear}\n\n` +
+      `Current values:\n` +
       `• Endorsements: ${totals.perEndorsement}\n` +
       `• Per Seafarer: ${totals.perSeafarer}\n` +
-      `• Certificados: ${totals.appCert}\n\n` +
-      `OK = Usar valores atuais\n` +
-      `Cancelar = Inserir valores manualmente`
+      `• Certificates: ${totals.appCert}\n\n` +
+      `OK = Use current values\n` +
+      `Cancel = Enter values manually`
     );
     
     let endorsements = totals.perEndorsement;
@@ -384,15 +384,15 @@ export default function App() {
     let certificates = totals.appCert;
     
     if (!useCustomValues) {
-      const customEnd = prompt(`Endorsements para ${month}/${monthYear}:`, totals.perEndorsement.toString());
+      const customEnd = prompt(`Endorsements for ${month}/${monthYear}:`, totals.perEndorsement.toString());
       if (customEnd === null) return;
       endorsements = parseInt(customEnd) || 0;
       
-      const customSea = prompt(`Per Seafarer para ${month}/${monthYear}:`, totals.perSeafarer.toString());
+      const customSea = prompt(`Per Seafarer for ${month}/${monthYear}:`, totals.perSeafarer.toString());
       if (customSea === null) return;
       seafarers = parseInt(customSea) || 0;
       
-      const customCert = prompt(`Certificados para ${month}/${monthYear}:`, totals.appCert.toString());
+      const customCert = prompt(`Certificates for ${month}/${monthYear}:`, totals.appCert.toString());
       if (customCert === null) return;
       certificates = parseInt(customCert) || 0;
     }
@@ -404,13 +404,13 @@ export default function App() {
     
     // Check if already exists
     if (weeklyHistory[weekKey]) {
-      if (!confirm(`Esta entrada já existe. Queres substituir?`)) {
+      if (!confirm(`This entry already exists. Do you want to replace it?`)) {
         return;
       }
     }
     
-    const monthNames = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
-                        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
+                        'July', 'August', 'September', 'October', 'November', 'December'];
     
     const newHistory = {
       ...weeklyHistory,
@@ -428,12 +428,12 @@ export default function App() {
     
     setWeeklyHistory(newHistory);
     setMonthOverride('');
-    alert(`✅ Semana ${weekNum} guardada!\n\nMês: ${monthNames[month]} ${monthYear}\nEndorsements: ${endorsements}\nPer Seafarer: ${seafarers}\nCertificados: ${certificates}`);
+    alert(`✅ Week ${weekNum} saved!\n\nMonth: ${monthNames[month]} ${monthYear}\nEndorsements: ${endorsements}\nPer Seafarer: ${seafarers}\nCertificates: ${certificates}`);
   };
 
   // Delete week from history
   const deleteWeekFromHistory = (weekKey) => {
-    if (!confirm(`Tens a certeza que queres eliminar ${weekKey}?`)) {
+    if (!confirm(`Are you sure you want to delete ${weekKey}?`)) {
       return;
     }
     
@@ -752,7 +752,7 @@ export default function App() {
   };
 
   const generatePDFReport = () => {
-    const reportDate = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+    const reportDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
     
     // Group weekly history by week number (combine split weeks)
     const weeklyTotals = {};
@@ -889,7 +889,7 @@ export default function App() {
   ${Object.keys(monthlyData).length > 0 ? `
   <div class="section-title">Monthly Overview</div>
   <table class="green-header">
-    <tr><th>Month</th><th>Endorsements</th><th>Certificates</th><th>Processing Rate</th><th>Net Flow</th></tr>
+    <tr><th>Month</th><th>Endorsements</th><th>Certificates Submitted</th><th>Processing Rate</th><th>Net Flow</th></tr>
     ${Object.entries(monthlyData).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => {
       const date = new Date(month + '-01');
       const endorsements = typeof data === 'object' ? data.endorsements : data;
@@ -902,9 +902,9 @@ export default function App() {
     }).join('')}
   </table>
   <div style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px; font-size: 12px;">
-    <p style="margin: 3px 0;"><strong>📊 Legenda:</strong></p>
-    <p style="margin: 3px 0;">• <strong>Processing Rate</strong> = Certificates ÷ Endorsements × 100 (acima de 100% = a reduzir backlog)</p>
-    <p style="margin: 3px 0;">• <strong>Net Flow</strong> = Endorsements − Certificates (<span style="color: green;">negativo = bom</span>, <span style="color: red;">positivo = backlog a aumentar</span>)</p>
+    <p style="margin: 3px 0;"><strong>📊 Legend:</strong></p>
+    <p style="margin: 3px 0;">• <strong>Processing Rate</strong> = Certificates ÷ Endorsements × 100 (above 100% = reducing backlog)</p>
+    <p style="margin: 3px 0;">• <strong>Net Flow</strong> = Endorsements − Certificates (<span style="color: green;">negative = good</span>, <span style="color: red;">positive = backlog increasing</span>)</p>
   </div>
   ` : ''}
 </body>
@@ -941,7 +941,7 @@ export default function App() {
                 <><span className="animate-pulse">💾</span> A guardar...</>
               )}
               {syncStatus === 'synced' && (
-                <><span className="text-green-300">☁️</span> Sincronizado {lastSaved && `• ${lastSaved.toLocaleTimeString('pt-PT')}`}</>
+                <><span className="text-green-300">☁️</span> Synced {lastSaved && `• ${lastSaved.toLocaleTimeString('en-GB')}`}</>
               )}
               {syncStatus === 'error' && (
                 <><span className="text-yellow-300">⚠️</span> Offline (localStorage)</>
@@ -1107,7 +1107,7 @@ export default function App() {
             {Object.keys(weeklyHistory).length > 0 && (
               <div className="bg-white rounded-xl shadow-md overflow-hidden">
                 <div className="bg-green-700 text-white px-6 py-4">
-                  <h2 className="text-xl font-bold">📈 Evolução Semanal de Endorsements</h2>
+                  <h2 className="text-xl font-bold">📈 Weekly Endorsements Trend</h2>
                 </div>
                 <div className="p-4">
                   <ResponsiveContainer width="100%" height={300}>
@@ -1163,14 +1163,140 @@ export default function App() {
                         stroke="#2563eb" 
                         strokeWidth={2}
                         dot={{ fill: '#2563eb', strokeWidth: 2, r: 4 }}
-                        name="Certificados"
+                        name="Certificates"
                       />
                     </LineChart>
                   </ResponsiveContainer>
-                  <p className="text-gray-400 text-xs text-center mt-2">* Semana atual (em progresso)</p>
+                  <p className="text-gray-400 text-xs text-center mt-2">* Current week (in progress)</p>
                 </div>
               </div>
             )}
+
+            {/* Monthly Overview */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="bg-green-700 text-white px-6 py-4">
+                <h2 className="text-xl font-bold">📊 Monthly Overview</h2>
+                <p className="text-green-200 text-sm">Accumulated data from saved weeks</p>
+              </div>
+              <div className="p-4">
+                {Object.keys(monthlyData).length === 0 ? (
+                  <p className="text-gray-400 text-center py-8">No monthly data yet. Save weeks to see the monthly summary.</p>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-green-50">
+                            <th className="p-3 text-left font-semibold text-gray-700">Month</th>
+                            <th className="p-3 text-center font-semibold text-gray-700">Endorsements</th>
+                            <th className="p-3 text-center font-semibold text-gray-700">Certificates Submitted</th>
+                            <th className="p-3 text-center font-semibold text-gray-700">Processing Rate</th>
+                            <th className="p-3 text-center font-semibold text-gray-700">Net Flow</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(monthlyData).sort(([a], [b]) => b.localeCompare(a)).map(([month, data]) => {
+                            const date = new Date(month + '-01');
+                            const processingRate = data.endorsements > 0 ? Math.round((data.certificates / data.endorsements) * 100) : 0;
+                            const netFlow = data.endorsements - data.certificates;
+                            return (
+                              <tr key={month} className="border-b hover:bg-gray-50">
+                                <td className="p-3 font-medium">{date.toLocaleString('en', { month: 'long', year: 'numeric' })}</td>
+                                <td className="p-3 text-center text-green-700 font-bold">{data.endorsements}</td>
+                                <td className="p-3 text-center text-blue-700 font-bold">{data.certificates}</td>
+                                <td className="p-3 text-center font-bold">
+                                  <span className={processingRate >= 100 ? 'text-green-600' : 'text-orange-600'}>{processingRate}%</span>
+                                </td>
+                                <td className="p-3 text-center font-bold">
+                                  <span className={netFlow <= 0 ? 'text-green-600' : 'text-red-600'}>
+                                    {netFlow > 0 ? '+' : ''}{netFlow}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Legend */}
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg text-sm">
+                      <p className="font-semibold text-gray-700 mb-2">📊 Legend:</p>
+                      <div className="grid md:grid-cols-2 gap-2 text-gray-600">
+                        <p>• <strong>Processing Rate</strong> = Certificates ÷ Endorsements × 100</p>
+                        <p className="text-green-600">↑ Above 100% = Reducing backlog</p>
+                        <p>• <strong>Net Flow</strong> = Endorsements − Certificates</p>
+                        <p><span className="text-green-600">Negative = Good</span> | <span className="text-red-600">Positive = Backlog ↑</span></p>
+                      </div>
+                    </div>
+
+                    {/* Backlog Chart */}
+                    <div className="mt-6">
+                      <h3 className="font-semibold text-gray-700 mb-3">📈 Backlog Trend</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <LineChart
+                          data={(() => {
+                            let accumulated = 0;
+                            return Object.entries(monthlyData)
+                              .sort(([a], [b]) => a.localeCompare(b))
+                              .map(([month, data]) => {
+                                const netFlow = data.endorsements - data.certificates;
+                                accumulated += netFlow;
+                                const date = new Date(month + '-01');
+                                return {
+                                  month: date.toLocaleString('en', { month: 'short', year: '2-digit' }),
+                                  endorsements: data.endorsements,
+                                  certificates: data.certificates,
+                                  backlog: accumulated
+                                };
+                              });
+                          })()}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                          <XAxis dataKey="month" stroke="#666" fontSize={12} />
+                          <YAxis stroke="#666" fontSize={12} />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '8px' }}
+                            labelStyle={{ fontWeight: 'bold' }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="endorsements" 
+                            stroke="#16a34a" 
+                            strokeWidth={2}
+                            dot={{ fill: '#16a34a', r: 4 }}
+                            name="Endorsements (in)"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="certificates" 
+                            stroke="#2563eb" 
+                            strokeWidth={2}
+                            dot={{ fill: '#2563eb', r: 4 }}
+                            name="Certificates (out)"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="backlog" 
+                            stroke="#dc2626" 
+                            strokeWidth={3}
+                            strokeDasharray="5 5"
+                            dot={{ fill: '#dc2626', r: 5 }}
+                            name="Accumulated backlog"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                      <div className="mt-2 flex flex-wrap justify-center gap-4 text-xs">
+                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-green-600 inline-block"></span> Endorsements (in)</span>
+                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-blue-600 inline-block"></span> Certificates (out)</span>
+                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-red-600 inline-block border-dashed"></span> Accumulated backlog (dashed)</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
 
             {/* Generate Report Button */}
             <button 
@@ -1197,32 +1323,32 @@ export default function App() {
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="font-semibold text-gray-700">Mês:</label>
+                  <label className="font-semibold text-gray-700">Month:</label>
                   <select
                     value={monthOverride}
                     onChange={(e) => setMonthOverride(e.target.value)}
                     className="border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-red-500 focus:outline-none"
                   >
                     <option value="">Auto</option>
-                    <option value="2025-12">Dezembro 2025</option>
-                    <option value="2026-01">Janeiro 2026</option>
-                    <option value="2026-02">Fevereiro 2026</option>
-                    <option value="2026-03">Março 2026</option>
+                    <option value="2025-12">December 2025</option>
+                    <option value="2026-01">January 2026</option>
+                    <option value="2026-02">February 2026</option>
+                    <option value="2026-03">March 2026</option>
                   </select>
                 </div>
                 <div className="flex gap-2">
                   <button 
                     onClick={saveWeekToHistory} 
                     className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold shadow-md transition-all flex items-center gap-2"
-                    title="Guarda os dados desta semana no histórico mensal"
+                    title="Save this week's data to the monthly history"
                   >
-                    💾 Guardar Semana
+                    💾 Save Week
                   </button>
                   <button 
                     onClick={resetForNewWeek} 
                     className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-3 rounded-lg font-semibold shadow-md transition-all flex items-center gap-2"
                   >
-                    🔄 Nova Semana
+                    🔄 New Week
                   </button>
                   <button 
                     onClick={downloadCrewboardExcel} 
@@ -1460,156 +1586,30 @@ export default function App() {
               </div>
             </div>
 
-            {/* Monthly Overview */}
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="bg-green-700 text-white px-6 py-4">
-                <h2 className="text-xl font-bold">📊 Monthly Overview</h2>
-                <p className="text-green-200 text-sm">Dados acumulados das semanas guardadas</p>
-              </div>
-              <div className="p-4">
-                {Object.keys(monthlyData).length === 0 ? (
-                  <p className="text-gray-400 text-center py-8">Nenhum dado mensal ainda. Guarda semanas para ver o resumo mensal.</p>
-                ) : (
-                  <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-green-50">
-                            <th className="p-3 text-left font-semibold text-gray-700">Mês</th>
-                            <th className="p-3 text-center font-semibold text-gray-700">Endorsements</th>
-                            <th className="p-3 text-center font-semibold text-gray-700">Certificates</th>
-                            <th className="p-3 text-center font-semibold text-gray-700">Processing Rate</th>
-                            <th className="p-3 text-center font-semibold text-gray-700">Net Flow</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.entries(monthlyData).sort(([a], [b]) => b.localeCompare(a)).map(([month, data]) => {
-                            const date = new Date(month + '-01');
-                            const processingRate = data.endorsements > 0 ? Math.round((data.certificates / data.endorsements) * 100) : 0;
-                            const netFlow = data.endorsements - data.certificates;
-                            return (
-                              <tr key={month} className="border-b hover:bg-gray-50">
-                                <td className="p-3 font-medium">{date.toLocaleString('pt-PT', { month: 'long', year: 'numeric' })}</td>
-                                <td className="p-3 text-center text-green-700 font-bold">{data.endorsements}</td>
-                                <td className="p-3 text-center text-blue-700 font-bold">{data.certificates}</td>
-                                <td className="p-3 text-center font-bold">
-                                  <span className={processingRate >= 100 ? 'text-green-600' : 'text-orange-600'}>{processingRate}%</span>
-                                </td>
-                                <td className="p-3 text-center font-bold">
-                                  <span className={netFlow <= 0 ? 'text-green-600' : 'text-red-600'}>
-                                    {netFlow > 0 ? '+' : ''}{netFlow}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    
-                    {/* Legend */}
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg text-sm">
-                      <p className="font-semibold text-gray-700 mb-2">📊 Legenda:</p>
-                      <div className="grid md:grid-cols-2 gap-2 text-gray-600">
-                        <p>• <strong>Processing Rate</strong> = Certificates ÷ Endorsements × 100</p>
-                        <p className="text-green-600">↑ Acima de 100% = A reduzir backlog</p>
-                        <p>• <strong>Net Flow</strong> = Endorsements − Certificates</p>
-                        <p><span className="text-green-600">Negativo = Bom</span> | <span className="text-red-600">Positivo = Backlog ↑</span></p>
-                      </div>
-                    </div>
-
-                    {/* Backlog Chart */}
-                    <div className="mt-6">
-                      <h3 className="font-semibold text-gray-700 mb-3">📈 Evolução do Backlog</h3>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <LineChart
-                          data={(() => {
-                            let accumulated = 0;
-                            return Object.entries(monthlyData)
-                              .sort(([a], [b]) => a.localeCompare(b))
-                              .map(([month, data]) => {
-                                const netFlow = data.endorsements - data.certificates;
-                                accumulated += netFlow;
-                                const date = new Date(month + '-01');
-                                return {
-                                  month: date.toLocaleString('pt-PT', { month: 'short', year: '2-digit' }),
-                                  endorsements: data.endorsements,
-                                  certificates: data.certificates,
-                                  backlog: accumulated
-                                };
-                              });
-                          })()}
-                          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                          <XAxis dataKey="month" stroke="#666" fontSize={12} />
-                          <YAxis stroke="#666" fontSize={12} />
-                          <Tooltip 
-                            contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '8px' }}
-                            labelStyle={{ fontWeight: 'bold' }}
-                          />
-                          <Line 
-                            type="monotone" 
-                            dataKey="endorsements" 
-                            stroke="#16a34a" 
-                            strokeWidth={2}
-                            dot={{ fill: '#16a34a', r: 4 }}
-                            name="Endorsements (entrada)"
-                          />
-                          <Line 
-                            type="monotone" 
-                            dataKey="certificates" 
-                            stroke="#2563eb" 
-                            strokeWidth={2}
-                            dot={{ fill: '#2563eb', r: 4 }}
-                            name="Certificates (saída)"
-                          />
-                          <Line 
-                            type="monotone" 
-                            dataKey="backlog" 
-                            stroke="#dc2626" 
-                            strokeWidth={3}
-                            strokeDasharray="5 5"
-                            dot={{ fill: '#dc2626', r: 5 }}
-                            name="Backlog acumulado"
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                      <div className="mt-2 flex flex-wrap justify-center gap-4 text-xs">
-                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-green-600 inline-block"></span> Endorsements (entrada)</span>
-                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-blue-600 inline-block"></span> Certificates (saída)</span>
-                        <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-red-600 inline-block border-dashed"></span> Backlog acumulado (tracejado)</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-              
-              {/* Weekly History Details */}
-              {Object.keys(weeklyHistory).length > 0 && (
-                <div className="border-t">
-                  <div className="bg-gray-100 px-6 py-3">
-                    <h3 className="font-semibold text-gray-700">📅 Semanas Guardadas</h3>
-                  </div>
-                  <div className="p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                    {Object.entries(weeklyHistory).sort(([a], [b]) => b.localeCompare(a)).map(([weekKey, data]) => (
-                      <div key={weekKey} className="bg-gray-50 rounded-lg p-3 text-center text-sm relative group">
-                        <button
-                          onClick={() => deleteWeekFromHistory(weekKey)}
-                          className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Eliminar"
-                        >
-                          ✕
-                        </button>
-                        <div className="font-bold text-gray-700 text-xs">{weekKey}</div>
-                        <div className="text-green-600">{data.endorsements} end.</div>
-                        <div className="text-blue-600">{data.certificates} cert.</div>
-                      </div>
-                    ))}
-                  </div>
+            {/* Weekly History Details */}
+            {Object.keys(weeklyHistory).length > 0 && (
+              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="bg-gray-100 px-6 py-3">
+                  <h3 className="font-semibold text-gray-700">📅 Saved Weeks</h3>
                 </div>
-              )}
-            </div>
+                <div className="p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {Object.entries(weeklyHistory).sort(([a], [b]) => b.localeCompare(a)).map(([weekKey, data]) => (
+                    <div key={weekKey} className="bg-gray-50 rounded-lg p-3 text-center text-sm relative group">
+                      <button
+                        onClick={() => deleteWeekFromHistory(weekKey)}
+                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Delete"
+                      >
+                        ✕
+                      </button>
+                      <div className="font-bold text-gray-700 text-xs">{weekKey}</div>
+                      <div className="text-green-600">{data.endorsements} end.</div>
+                      <div className="text-blue-600">{data.certificates} cert.</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1617,18 +1617,18 @@ export default function App() {
           <div className="space-y-6">
             {/* Report Header */}
             <div className="bg-white rounded-xl shadow-md p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">📄 Editar Relatório Semanal</h2>
-              <p className="text-gray-600">Edita as notas e informações antes de gerar o relatório.</p>
+              <h2 className="text-xl font-bold text-gray-800 mb-4">📄 Edit Weekly Report</h2>
+              <p className="text-gray-600">Edit notes and information before generating the report.</p>
             </div>
 
             {/* Notes Section */}
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
               <div className="bg-red-700 text-white px-6 py-4">
-                <h3 className="font-bold">📝 Notas do Relatório</h3>
+                <h3 className="font-bold">📝 Report Notes</h3>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nota 1 (Endorsements recebidos)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Note 1 (Endorsements received)</label>
                   <input
                     type="text"
                     value={reportNotes.note1}
@@ -1643,7 +1643,7 @@ export default function App() {
                   <p className="text-xs text-gray-400 mt-1">Use {'{endorsements}'} para inserir o número automaticamente</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nota 2 (Applications/Certificates)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Note 2 (Applications/Certificates)</label>
                   <input
                     type="text"
                     value={reportNotes.note2}
@@ -1658,7 +1658,7 @@ export default function App() {
                   <p className="text-xs text-gray-400 mt-1">Use {'{applications}'} e {'{certificates}'} para inserir números automaticamente</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Notas Extra (opcional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Extra Notes (optional)</label>
                   <textarea
                     value={reportNotes.extraNotes}
                     onChange={(e) => {
@@ -1667,7 +1667,7 @@ export default function App() {
                       localStorage.setItem('seafarers_reportNotes', JSON.stringify(newNotes));
                     }}
                     className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-red-500 focus:outline-none h-24"
-                    placeholder="Adiciona notas extras aqui... (cada linha será um bullet point)"
+                    placeholder="Add extra notes here... (each line will be a bullet point)"
                   />
                 </div>
               </div>
@@ -1677,7 +1677,7 @@ export default function App() {
             {nextSRA && (
               <div className="bg-white rounded-xl shadow-md overflow-hidden">
                 <div className="bg-orange-600 text-white px-6 py-4">
-                  <h3 className="font-bold">⚠️ Próximo SRA a Expirar</h3>
+                  <h3 className="font-bold">⚠️ Next SRA to Expire</h3>
                 </div>
                 <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
@@ -1690,7 +1690,7 @@ export default function App() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Navio</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Ship</label>
                     <input
                       type="text"
                       value={nextSRA.ship}
@@ -1699,7 +1699,7 @@ export default function App() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Marítimo</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Seafarer</label>
                     <input
                       type="text"
                       value={nextSRA.name}
@@ -1708,7 +1708,7 @@ export default function App() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Empresa</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
                     <input
                       type="text"
                       value={nextSRA.company}
@@ -1723,7 +1723,7 @@ export default function App() {
             {/* Preview Section */}
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
               <div className="bg-gray-700 text-white px-6 py-4">
-                <h3 className="font-bold">👁️ Pré-visualização das Notas</h3>
+                <h3 className="font-bold">👁️ Notes Preview</h3>
               </div>
               <div className="p-6">
                 <div className="bg-gray-50 rounded-lg p-4 space-y-2">
@@ -1749,7 +1749,7 @@ export default function App() {
               onClick={generatePDFReport} 
               className="w-full bg-gradient-to-r from-red-700 to-red-600 hover:from-red-800 hover:to-red-700 text-white px-8 py-4 rounded-xl font-semibold shadow-lg transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 text-lg"
             >
-              📄 Gerar Relatório Semanal
+              📄 Generate Weekly Report
             </button>
           </div>
         )}
