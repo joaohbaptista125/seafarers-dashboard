@@ -978,48 +978,6 @@ export default function App() {
       <div className="max-w-6xl mx-auto p-6">
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            {/* Upload Section */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h2 className="font-semibold mb-4 text-gray-700">📁 Upload Zoho CSV</h2>
-                <label 
-                  className={`block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
-                    isDraggingCSV 
-                      ? 'border-red-500 bg-red-100 scale-105' 
-                      : 'border-gray-300 hover:border-red-400 hover:bg-red-50'
-                  }`}
-                  onDragOver={(e) => handleDragOver(e, 'csv')}
-                  onDragLeave={(e) => handleDragLeave(e, 'csv')}
-                  onDrop={handleDropCSV}
-                >
-                  <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
-                  <div className="text-4xl mb-2">{isDraggingCSV ? '📥' : '📄'}</div>
-                  <p className="text-gray-600">{isDraggingCSV ? 'Larga aqui!' : 'Clica ou arrasta CSV'}</p>
-                  <p className="text-gray-400 text-sm mt-1">BMAREEndorsementsinprocess.csv</p>
-                  {csvData && <p className="text-green-600 mt-3 font-medium">✅ {csvData.length} records loaded</p>}
-                </label>
-              </div>
-              
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h2 className="font-semibold mb-4 text-gray-700">📊 Upload Weekly Excel</h2>
-                <label 
-                  className={`block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
-                    isDraggingExcel 
-                      ? 'border-green-500 bg-green-100 scale-105' 
-                      : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
-                  }`}
-                  onDragOver={(e) => handleDragOver(e, 'excel')}
-                  onDragLeave={(e) => handleDragLeave(e, 'excel')}
-                  onDrop={handleDropExcel}
-                >
-                  <input type="file" accept=".xlsx,.xls" onChange={handleExcelUpload} className="hidden" />
-                  <div className="text-4xl mb-2">{isDraggingExcel ? '📥' : '📈'}</div>
-                  <p className="text-gray-600">{isDraggingExcel ? 'Larga aqui!' : 'Clica ou arrasta Excel'}</p>
-                  <p className="text-gray-400 text-sm mt-1">Week_XX.xlsx</p>
-                </label>
-              </div>
-            </div>
-
             {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-green-500">
@@ -1027,11 +985,11 @@ export default function App() {
                 <p className="text-3xl font-bold text-green-600 mt-1">{isNaN(totals.perEndorsement) ? 0 : totals.perEndorsement}</p>
               </div>
               <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500">
-                <p className="text-gray-500 text-sm">Applications</p>
+                <p className="text-gray-500 text-sm">Applications Received</p>
                 <p className="text-3xl font-bold text-blue-600 mt-1">{isNaN(totals.appSeafarer) ? 0 : totals.appSeafarer}</p>
               </div>
               <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-purple-500">
-                <p className="text-gray-500 text-sm">Certificates</p>
+                <p className="text-gray-500 text-sm">Certificates Submitted in BMAR</p>
                 <p className="text-3xl font-bold text-purple-600 mt-1">{isNaN(totals.appCert) ? 0 : totals.appCert}</p>
               </div>
               <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-orange-500">
@@ -1618,7 +1576,49 @@ export default function App() {
             {/* Report Header */}
             <div className="bg-white rounded-xl shadow-md p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-4">📄 Edit Weekly Report</h2>
-              <p className="text-gray-600">Edit notes and information before generating the report.</p>
+              <p className="text-gray-600">Upload your data files and edit notes before generating the report.</p>
+            </div>
+
+            {/* Upload Section */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h2 className="font-semibold mb-4 text-gray-700">📁 Upload Zoho CSV</h2>
+                <label 
+                  className={`block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
+                    isDraggingCSV 
+                      ? 'border-red-500 bg-red-100 scale-105' 
+                      : 'border-gray-300 hover:border-red-400 hover:bg-red-50'
+                  }`}
+                  onDragOver={(e) => handleDragOver(e, 'csv')}
+                  onDragLeave={(e) => handleDragLeave(e, 'csv')}
+                  onDrop={handleDropCSV}
+                >
+                  <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
+                  <div className="text-4xl mb-2">{isDraggingCSV ? '📥' : '📄'}</div>
+                  <p className="text-gray-600">{isDraggingCSV ? 'Drop here!' : 'Click or drag CSV'}</p>
+                  <p className="text-gray-400 text-sm mt-1">BMAREEndorsementsinprocess.csv</p>
+                  {csvData && <p className="text-green-600 mt-3 font-medium">✅ {csvData.length} records loaded</p>}
+                </label>
+              </div>
+              
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h2 className="font-semibold mb-4 text-gray-700">📊 Upload Weekly Excel</h2>
+                <label 
+                  className={`block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
+                    isDraggingExcel 
+                      ? 'border-green-500 bg-green-100 scale-105' 
+                      : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
+                  }`}
+                  onDragOver={(e) => handleDragOver(e, 'excel')}
+                  onDragLeave={(e) => handleDragLeave(e, 'excel')}
+                  onDrop={handleDropExcel}
+                >
+                  <input type="file" accept=".xlsx,.xls" onChange={handleExcelUpload} className="hidden" />
+                  <div className="text-4xl mb-2">{isDraggingExcel ? '📥' : '📈'}</div>
+                  <p className="text-gray-600">{isDraggingExcel ? 'Drop here!' : 'Click or drag Excel'}</p>
+                  <p className="text-gray-400 text-sm mt-1">Week_XX.xlsx</p>
+                </label>
+              </div>
             </div>
 
             {/* Notes Section */}
@@ -1640,7 +1640,7 @@ export default function App() {
                     className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-red-500 focus:outline-none"
                     placeholder="This week we received a total of {endorsements} endorsements."
                   />
-                  <p className="text-xs text-gray-400 mt-1">Use {'{endorsements}'} para inserir o número automaticamente</p>
+                  <p className="text-xs text-gray-400 mt-1">Use {'{endorsements}'} to insert the number automatically</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Note 2 (Applications/Certificates)</label>
@@ -1655,7 +1655,7 @@ export default function App() {
                     className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-red-500 focus:outline-none"
                     placeholder="This week we received {applications} applications..."
                   />
-                  <p className="text-xs text-gray-400 mt-1">Use {'{applications}'} e {'{certificates}'} para inserir números automaticamente</p>
+                  <p className="text-xs text-gray-400 mt-1">Use {'{applications}'} and {'{certificates}'} to insert numbers automatically</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Extra Notes (optional)</label>
