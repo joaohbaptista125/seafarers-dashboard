@@ -431,6 +431,17 @@ export default function App() {
     alert(`✅ Semana ${weekNum} guardada!\n\nMês: ${monthNames[month]} ${monthYear}\nEndorsements: ${endorsements}\nPer Seafarer: ${seafarers}\nCertificados: ${certificates}`);
   };
 
+  // Delete week from history
+  const deleteWeekFromHistory = (weekKey) => {
+    if (!confirm(`Tens a certeza que queres eliminar ${weekKey}?`)) {
+      return;
+    }
+    
+    const newHistory = { ...weeklyHistory };
+    delete newHistory[weekKey];
+    setWeeklyHistory(newHistory);
+  };
+
   // Helper function to convert Excel serial date to JS Date
   const excelDateToJS = (excelDate) => {
     if (typeof excelDate === 'number') {
@@ -1457,8 +1468,15 @@ export default function App() {
                   </div>
                   <div className="p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
                     {Object.entries(weeklyHistory).sort(([a], [b]) => b.localeCompare(a)).map(([weekKey, data]) => (
-                      <div key={weekKey} className="bg-gray-50 rounded-lg p-3 text-center text-sm">
-                        <div className="font-bold text-gray-700">{weekKey}</div>
+                      <div key={weekKey} className="bg-gray-50 rounded-lg p-3 text-center text-sm relative group">
+                        <button
+                          onClick={() => deleteWeekFromHistory(weekKey)}
+                          className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Eliminar"
+                        >
+                          ✕
+                        </button>
+                        <div className="font-bold text-gray-700 text-xs">{weekKey}</div>
                         <div className="text-green-600">{data.endorsements} end.</div>
                         <div className="text-blue-600">{data.certificates} cert.</div>
                       </div>
