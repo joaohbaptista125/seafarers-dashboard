@@ -247,8 +247,11 @@ export default function App() {
 
   // Function to reset all data for new week
   const resetForNewWeek = async () => {
-    if (window.confirm('⚠️ Are you sure you want to clear all data and start a new week?')) {
-      const newData = { ...INITIAL_WEEKLY_DATA, weekNumber: getCurrentWeek() };
+    const currentWeekNum = weeklyData.weekNumber || getCurrentWeek();
+    const nextWeekNum = currentWeekNum >= 52 ? 1 : currentWeekNum + 1;
+    
+    if (window.confirm(`⚠️ Start new week?\n\nThis will clear current data and move to Week ${nextWeekNum}.`)) {
+      const newData = { ...INITIAL_WEEKLY_DATA, weekNumber: nextWeekNum };
       setWeeklyData(newData);
       setOutstandingEnd(null);
       setNextSRA(null);
@@ -1291,10 +1294,18 @@ export default function App() {
                     className="border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none"
                   >
                     <option value="">Auto</option>
-                    <option value="2025-12">December 2025</option>
-                    <option value="2026-01">January 2026</option>
-                    <option value="2026-02">February 2026</option>
-                    <option value="2026-03">March 2026</option>
+                    {(() => {
+                      const months = [];
+                      const now = new Date();
+                      // Generate last 2 months + current + next 6 months
+                      for (let i = -2; i <= 6; i++) {
+                        const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                        const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                        const label = date.toLocaleString('en', { month: 'long', year: 'numeric' });
+                        months.push(<option key={value} value={value}>{label}</option>);
+                      }
+                      return months;
+                    })()}
                   </select>
                 </div>
                 <div className="flex gap-2">
@@ -1323,8 +1334,12 @@ export default function App() {
 
             {/* Crewboard Table */}
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="bg-gray-800 text-white px-6 py-4">
+              <div className="bg-gray-800 text-white px-6 py-4 flex justify-between items-center">
                 <h2 className="text-xl font-bold">Crewing Board - Week {weeklyData.weekNumber}</h2>
+                <span className="text-gray-300 text-sm flex items-center gap-2">
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                  Auto-saving enabled
+                </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
